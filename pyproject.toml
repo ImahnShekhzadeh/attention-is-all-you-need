@@ -1,0 +1,16 @@
+[project]
+
+name = "transformers"
+version = "1.0.0"
+description = "Attention is all you need"
+authors = [
+    {name = "Imahn Shekhzadeh", email = "imahn.shekhzadeh@posteo.de"},
+]
+license = {text = "MIT license"}
+requires-python = ">=3.10"
+
+dependencies = [
+    "matplotlib~=3.2",
+    "seaborn~=0.13",
+    "pytorch-lightning~=2.1",
+]
