@@ -28,7 +28,7 @@ class LRScheduler:
 
     def _update_lr(self) -> None:
         """
-        Update the learning rate.
+        Update the learning rate, cf. Eq. (3) of [1].
         """
         lr = (self.d_model**-0.5) * min(
             self.step_num**-0.5, self.step_num * self.warmup_steps**-1.5
@@ -44,4 +44,3 @@ class LRScheduler:
         """
         self.step_num += 1
         self._update_lr()
-        self.optimizer.step()
