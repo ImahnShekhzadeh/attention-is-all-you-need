@@ -14,3 +14,14 @@ dependencies = [
     "seaborn~=0.13",
     "pytorch-lightning~=2.1",
 ]
+
+[tool.isort]
+
+profile="black"
+line_length=79
+# necessary to get `isort` working in Docker container:
+overwrite_in_place=true
+
+[tool.black]
+line-length = 79
+exclude = "setup.py"
