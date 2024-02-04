@@ -226,32 +226,28 @@ class MultiHeadAttention(nn.Module):
         """
         if mask is not None:
             mask = expand_mask(mask)
-        qkv = self.qkv_proj(x)  # `(N, seq_length, 3 * embed_dim)`
+        qkv_proj = self.qkv_proj(x)  # `(N, seq_length, 3 * embed_dim)`
 
-        # reshape into `(N, seq_length, self.num_heads, 3 * self.head_dim)`;
-        # note that `self.embed_dim = self.num_heads * self.head_dim`
-        qkv = qkv.reshape(
-            qkv.shape[0], qkv.shape[1], self.num_heads, 3 * self.head_dim
-        )
-
+        # reshape and permute into
         # `(N, self.num_heads, seq_length, 3 * self.head_dim)`
-        qkv = qkv.permute(dims=(0, 2, 1, 3))
+        # note that `self.embed_dim = self.num_heads * self.head_dim`
+        qkv_proj = qkv_proj.reshape(
+            qkv_proj.shape[0],
+            qkv_proj.shape[1],
+            self.num_heads,
+            3 * self.head_dim,
+        ).permute(dims=(0, 2, 1, 3))
 
         # separate queries, keys and values from reshaped and permuted
         # projection `(N, self.num_heads, seq_length, self.head_dim)`
-        q_proj, k_proj, v_proj = qkv.chunk(chunks=3, dim=-1)
+        q_proj, k_proj, v_proj = qkv_proj.chunk(chunks=3, dim=-1)
 
         # Determine value outputs
-        # shape of `values`: `(N, self.num_heads, seq_length, self.head_dim)`
-        # shape of `attn_weights`:
-        # `(N, self.num_heads, seq_length, seq_length')`
+        # `(N, self.num_heads, seq_length, self.head_dim)`
         values, attn_weights = scaled_dot_product_attn(
             q_proj, k_proj, v_proj, mask=mask
         )
-        values = values.permute(
-            0, 2, 1, 3
-        )  # `(N, seq_length, self.num_heads, self.head_dim)`
-        values = values.reshape(
+        values = values.permute(0, 2, 1, 3).reshape(
             values.shape[0], values.shape[1], self.embed_dim
         )
         o = self.o_proj(values)  # `(N, seq_length, self.embed_dim)`
