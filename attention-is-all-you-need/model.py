@@ -1,8 +1,8 @@
 import math
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.nn.functional import softmax
 from torch.nn.init import xavier_uniform_
 
@@ -13,17 +13,18 @@ class PositionalEncoding(nn.Module):
         Positional encoder.
 
         Args:
-            max__seq_length: Maximum expected sequence length, chosen as `10000` in [1]
+            max__seq_length: Maximum expected sequence length, chosen as
+                `10000` in [1]
             embed_dim: Embedding dim, referred to as `d_model` in [1]
 
         [1] http://arxiv.org/abs/1706.03762
         """
-        assert embed_dim % 2 == 0, (
-            f"Please choose an embedding dimension that is even!"
-        )
-        
+        assert (
+            embed_dim % 2 == 0
+        ), f"Please choose an embedding dimension that is even!"
+
         super().__init__()
-        
+
         # create initial encoding tensor filled with zeros
         pos_encod = torch.zeros(
             max__seq_length,
@@ -31,17 +32,24 @@ class PositionalEncoding(nn.Module):
         )
 
         # sinusodial and cosinusoidal positional encodings
-        pos_idx = torch.arange(0, max__seq_length, 1, dtype=torch.float32).unsqueeze(1)  # `(max__seq_length, 1)`
+        pos_idx = torch.arange(
+            0, max__seq_length, 1, dtype=torch.float32
+        ).unsqueeze(
+            1
+        )  # `(max__seq_length, 1)`
         embed_idx = torch.arange(0, embed_dim // 2, 1, dtype=torch.float32)
-        
-        div = torch.exp(-2 * embed_idx / embed_dim * math.log(max__seq_length))  # for numerical stability
-        
+
+        div = torch.exp(
+            -2 * embed_idx / embed_dim * math.log(max__seq_length)
+        )  # for numerical stability
+
         pos_encod[:, ::2] = torch.sin(pos_idx * div)
         pos_encod[:, 1::2] = torch.cos(pos_idx * div)
         pos_encod = pos_encod.unsqueeze(0)  # `(1, max__seq_length, embed_dim)`
-        
-        # not a trainable param, but make a registered buffer for device handling
-        # positional encoding doesn't need to be part of the state dict, so use `persistent=False`
+
+        # not a trainable param, but make a registered buffer for device
+        # handling; positional encoding doesn't need to be part of the state
+        # dict, so use `persistent=False`
         self.register_buffer(
             name="pos_encod",
             tensor=pos_encod,
@@ -49,7 +57,7 @@ class PositionalEncoding(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """"
+        """ "
         Forward pass.
 
         Args:
@@ -57,11 +65,11 @@ class PositionalEncoding(nn.Module):
                 where `input_dim = embed_dim = d_model`
 
         Returns:
-            Tensor to which positional encoding is added in shape 
-                `(N, seq_length, input_dim)` if `seq_length <= max__seq_length`,
-                else `(N, max__seq_length, input_dim)`
+            Tensor to which positional encoding is added in shape
+            `(N, seq_length, input_dim)` if `seq_length <= max__seq_length`,
+            else `(N, max__seq_length, input_dim)`
         """
-        return x + self.pos_encod(x)[:, :x.shape[1]]  # uses registered buffer
+        return x + self.pos_encod(x)[:, : x.shape[1]]  # uses registered buffer
 
 
 def expand_mask(mask: torch.Tensor) -> torch.Tensor:
@@ -75,9 +83,9 @@ def expand_mask(mask: torch.Tensor) -> torch.Tensor:
     Args:
         mask: Mask.
     """
-    assert mask.ndim >= 2, (
-        "Mask must be at least 2-dimensional with `seq_length x seq_length`"
-    )
+    assert (
+        mask.ndim >= 2
+    ), "Mask must be at least 2-dimensional with `seq_length x seq_length`"
     if mask.ndim == 3:
         mask = mask.unsqueeze(1)
     while mask.ndim < 4:
@@ -92,10 +100,10 @@ def scaled_dot_product_attn(
     mask: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Implement scaled dot-product attention for batched queries, keys and 
+    Implement scaled dot-product attention for batched queries, keys and
     values.
-    
-    Args: 
+
+    Args:
         q: Queries in shape `(N, num_heads, seq_length, d_k)`,
             `(N, seq_length, d_k)` or `(seq_length, d_k)`
         k: Keys in shape `(N, num_heads, seq_length', d_k)`,
@@ -103,14 +111,14 @@ def scaled_dot_product_attn(
             (in practice, `seq_length' == seq_length`)
         v: Values in shape `(N, num_heads, seq_length', d_v)`,
             `(N, seq_length', d_v)` or `(seq_length', d_v)`
-        mask: Optional mask for padding.   
-    
-    Returns: 
-        Weighted values $softmax(qk^T / sqrt(d_k)) v$ in shape 
-        `(N, num_heads, seq_length, d_v)`, `(N, seq_length, d_v)` or 
-        `(seq_length, d_v,)` and attention weights 
-        $softmax(qk^T / sqrt(d_k))$ in shape 
-        `(N, num_heads, seq_length, seq_length')`, 
+        mask: Optional mask for padding.
+
+    Returns:
+        Weighted values $softmax(qk^T / sqrt(d_k)) v$ in shape
+        `(N, num_heads, seq_length, d_v)`, `(N, seq_length, d_v)` or
+        `(seq_length, d_v,)` and attention weights
+        $softmax(qk^T / sqrt(d_k))$ in shape
+        `(N, num_heads, seq_length, seq_length')`,
         `(N, seq_length, seq_length')` or `(seq_length, seq_length')`
     """
 
@@ -123,11 +131,8 @@ def scaled_dot_product_attn(
 
     # apply mask if provided
     if mask is not None:
-        attn_logits.masked_fill_(
-            mask==0,
-            -1e6
-        )
-    
+        attn_logits.masked_fill_(mask == 0, -1e6)
+
     # calculate attention weights
     attn_weights = softmax(attn_logits, dim=-1)
 
@@ -135,12 +140,18 @@ def scaled_dot_product_attn(
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, input_dim: int, embed_dim: int, num_heads: int, use_bias: bool = False) -> None:
+    def __init__(
+        self,
+        input_dim: int,
+        embed_dim: int,
+        num_heads: int,
+        use_bias: bool = False,
+    ) -> None:
         """
         Multi-head attention.
 
         Args:
-            input_dim: In the attention paper [1], `d_k = d_v`, which is here 
+            input_dim: In the attention paper [1], `d_k = d_v`, which is here
                 referred to as the input dimensionality
             embed_dim: Embedding dim, referred to as `d_model` in [1]
             num_heads: Number of heads, `h` in [1]
@@ -151,7 +162,8 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert embed_dim % num_heads == 0, (
             "In the original attention paper, `d_model = hd_v = hd_k`"
-            f"was chosen, hence `d_model`:`num_heads` cannot be {embed_dim}:{num_heads}"
+            f"was chosen, hence `d_model`:`num_heads` cannot be {embed_dim}: "
+            f"{num_heads}"
         )
 
         self.input_dim = input_dim
@@ -161,20 +173,20 @@ class MultiHeadAttention(nn.Module):
 
         # dim of queries, keys and values per self-attention head:
         # (cf. Sec. 3.2.2 of [1])
-        self.head_dim = int(embed_dim / num_heads) 
+        self.head_dim = int(embed_dim / num_heads)
 
         # stack all weight matrices per self-attention head
         self.qkv_proj = nn.Linear(
-            in_features=input_dim, 
+            in_features=input_dim,
             out_features=3 * embed_dim,
             bias=use_bias,
         )
         self.o_proj = nn.Linear(
             in_features=embed_dim,
             out_features=embed_dim,
-            bias=use_bias,   
+            bias=use_bias,
         )  # `W^O`
-        
+
         self._reset_parameters()
 
     def _reset_parameters(self) -> None:
@@ -192,9 +204,9 @@ class MultiHeadAttention(nn.Module):
             self.o_proj.bias.data.fill_(0)
 
     def forward(
-        self, 
-        x: torch.Tensor, 
-        mask: Optional[torch.Tensor] = None, 
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
         return_attention: Optional[bool] = False,
     ) -> torch.Tensor:
         """
@@ -208,31 +220,39 @@ class MultiHeadAttention(nn.Module):
 
         Returns:
             Output in shape `(N, seq_length, self.embed_dim)` and optionally
-            attention weights in shape `(N, self.num_heads, seq_length, seq_length)`
+            attention weights in shape
+            `(N, self.num_heads, seq_length, seq_length)`
         """
         if mask is not None:
             mask = expand_mask(mask)
         qkv = self.qkv_proj(x)  # `(N, seq_length, 3 * embed_dim)`
-        
-        # reshape into `(N, seq_length, self.num_heads, 3 * self.head_dim)` - note 
-        # that `self.embed_dim = self.num_heads * self.head_dim`
+
+        # reshape into `(N, seq_length, self.num_heads, 3 * self.head_dim)`;
+        # note that `self.embed_dim = self.num_heads * self.head_dim`
         qkv = qkv.reshape(
             qkv.shape[0], qkv.shape[1], self.num_heads, 3 * self.head_dim
         )
 
         # `(N, self.num_heads, seq_length, 3 * self.head_dim)`
         qkv = qkv.permute(dims=(0, 2, 1, 3))
-        
-        # separate queries, keys and values from reshaped and permuted projection
-        # `(N, self.num_heads, seq_length, self.head_dim)`
+
+        # separate queries, keys and values from reshaped and permuted
+        # projection `(N, self.num_heads, seq_length, self.head_dim)`
         q_proj, k_proj, v_proj = qkv.chunk(chunks=3, dim=-1)
 
         # Determine value outputs
+        # shape of `values`: `(N, self.num_heads, seq_length, self.head_dim)`
+        # shape of `attn_weights`:
+        # `(N, self.num_heads, seq_length, seq_length')`
         values, attn_weights = scaled_dot_product_attn(
             q_proj, k_proj, v_proj, mask=mask
-        )  # `(N, self.num_heads, seq_length, self.head_dim)`, `(N, self.num_heads, seq_length, seq_length')`
-        values = values.permute(0, 2, 1, 3)  # `(N, seq_length, self.num_heads, self.head_dim)`
-        values = values.reshape(values.shape[0], values.shape[1], self.embed_dim)
+        )
+        values = values.permute(
+            0, 2, 1, 3
+        )  # `(N, seq_length, self.num_heads, self.head_dim)`
+        values = values.reshape(
+            values.shape[0], values.shape[1], self.embed_dim
+        )
         o = self.o_proj(values)  # `(N, seq_length, self.embed_dim)`
 
         if return_attention:
@@ -248,11 +268,11 @@ class EncoderBlock(nn.Module):
         num_heads: int,
         dim_feedfwd: int = 2048,
         dropout: bool = 0.0,
-        use_bias: bool = False
+        use_bias: bool = False,
     ) -> None:
         """
         Initialization function.
-        
+
         Args:
             input_dim: In the attention paper [1], `d_k = d_v`, which is here
                 referred to as the input dimensionality
@@ -281,10 +301,14 @@ class EncoderBlock(nn.Module):
 
         # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
         self.mlp = nn.Sequential(
-            nn.Linear(in_features=input_dim, out_features=dim_feedfwd, bias=True),
+            nn.Linear(
+                in_features=input_dim, out_features=dim_feedfwd, bias=True
+            ),
             nn.Dropout(p=dropout),
             nn.ReLU(),
-            nn.Linear(in_features=dim_feedfwd, out_features=input_dim, bias=True)
+            nn.Linear(
+                in_features=dim_feedfwd, out_features=input_dim, bias=True
+            ),
         )
 
         # layers applied between the main layers
@@ -321,7 +345,7 @@ class EncoderBlock(nn.Module):
         out = self.norm_b(feedfwd_out + out)
 
         return out
-    
+
 
 class Encoder(nn.Module):
     def __init__(
@@ -344,7 +368,7 @@ class Encoder(nn.Module):
             dim_feedfwd: Hidden dimension when applying two-layer MLP
             dropout: Amount of dropout to be applied.
             use_bias: Whether a bias term is used. Default is `False`
-        
+
         [1] http://arxiv.org/abs/1706.03762
         """
         self.num_layers = num_layers
@@ -368,8 +392,11 @@ class Encoder(nn.Module):
             Output tensor of shape `(N, seq_length, input_dim)`
         """
         for _ in range(self.num_layers):
-            x = self.encoder_block(x=x, mask=mask,)
-        
+            x = self.encoder_block(
+                x=x,
+                mask=mask,
+            )
+
         return x
 
     def _get_attn_maps(self, mask: bool = None) -> List[Tensor]:
@@ -380,11 +407,12 @@ class Encoder(nn.Module):
             mask: Mask, either 2D, 3D or 4D
 
         Returns:
-            List of PyTorch tensors containing the attention weights per encoder block,
-            where each tensor is of shape `(N, num_heads, seq_length, seq_length)`
+            List of PyTorch tensors containing the attention weights per
+            encoder block, where each tensor is of shape `(N, num_heads,
+            seq_length, seq_length)`
         """
         attn_maps = []
-        
+
         for _ in range(self.num_layers):
             _, attn_weights = self.encoder_block.multihead_attn(
                 x=x,
@@ -396,5 +424,5 @@ class Encoder(nn.Module):
                 mask=mask,
             )
             attn_maps.append(attn_weights)
-        
+
         return attn_maps
