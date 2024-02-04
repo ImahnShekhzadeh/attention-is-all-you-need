@@ -3,7 +3,7 @@ from typing import List, Optional
 import torch
 from torch import Tensor, nn
 
-from layers import EncoderBlock
+from layers import DecoderBlock, EncoderBlock
 
 
 def expand_mask(mask: torch.Tensor) -> torch.Tensor:
@@ -61,7 +61,7 @@ class Encoder(nn.Module):
 
     def forward(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> Tensor:
+    ) -> torch.Tensor:
         """
         Forward pass.
 
@@ -82,7 +82,7 @@ class Encoder(nn.Module):
 
     def _get_attn_maps(
         self, mask: Optional[torch.Tensor] = None
-    ) -> List[Tensor]:
+    ) -> List[torch.Tensor]:
         """
         Retrieve the learned attention maps per head.
 
@@ -91,8 +91,8 @@ class Encoder(nn.Module):
 
         Returns:
             List of PyTorch tensors containing the attention weights per
-            encoder block, where each tensor is of shape `(N, num_heads,
-            seq_length, seq_length)`
+            encoder block, where each tensor is of shape
+            `(N, num_heads, seq_length, seq_length)`
         """
         attn_maps = []
 
@@ -109,3 +109,57 @@ class Encoder(nn.Module):
             attn_maps.append(attn_weights)
 
         return attn_maps
+
+
+class Decoder(nn.Module):
+    def __init__(
+        self,
+        num_layers: int,
+        embed_dim: int,
+        num_heads: int,
+        dim_feedfwd: int,
+        dropout: bool = 0.0,
+        use_bias: bool = False,
+    ) -> None:
+        """
+        Transformer decoder.
+
+        Args:
+            --- cf. `Encoder` ---
+        """
+        self.num_layers = num_layers
+        self.decoder_block = DecoderBlock(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            dim_feedfwd=dim_feedfwd,
+            dropout=dropout,
+            use_bias=use_bias,
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        encoder_output: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Args:
+            x: Input tensor of shape `(N, seq_length, input_dim)`
+                (`input_dim = embed_dim = d_model` in [1])
+            mask: Mask, either 2D, 3D or 4D
+
+        Returns:
+            Output tensor of shape `(N, seq_length, input_dim)`
+
+        [1] http://arxiv.org/abs/1706.03762
+        """
+        for _ in range(self.num_layers):
+            x = self.decoder_block(
+                x=x,
+                encoder_output=encoder_output,
+                mask=mask,
+            )
+
+        return x

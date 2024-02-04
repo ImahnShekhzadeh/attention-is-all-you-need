@@ -11,4 +11,4 @@ Then copy-paste one of the displayed URLs into the web browser.
 
 
 ## TODO
-[ ] implement `Decoder` class in `models.py`
+[ ] implement `mask`

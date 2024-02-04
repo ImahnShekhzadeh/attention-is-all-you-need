@@ -1,8 +1,9 @@
+from typing import Optional
+
 import torch
 from torch import nn
 
 from attention import DecoderMultiHeadAttention, MultiHeadAttention
-from typing import Optional
 
 
 class EncoderBlock(nn.Module):
