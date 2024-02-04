@@ -1,8 +1,9 @@
 from typing import List, Optional
 
 import torch
-from attention import DecoderMultiHeadAttention, MultiHeadAttention
 from torch import Tensor, nn
+
+from attention import DecoderMultiHeadAttention, MultiHeadAttention
 
 
 def expand_mask(mask: torch.Tensor) -> torch.Tensor:
