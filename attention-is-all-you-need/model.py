@@ -143,7 +143,6 @@ def scaled_dot_product_attn(
 class MultiHeadAttention(nn.Module):
     def __init__(
         self,
-        input_dim: int,
         embed_dim: int,
         num_heads: int,
         use_bias: bool = False,
@@ -152,8 +151,6 @@ class MultiHeadAttention(nn.Module):
         Multi-head attention.
 
         Args:
-            input_dim: In the attention paper [1], `d_k = d_v`, which is here
-                referred to as the input dimensionality
             embed_dim: Embedding dim, referred to as `d_model` in [1]
             num_heads: Number of heads, `h` in [1]
             use_bias: Whether a bias term is used. Default is `False`
@@ -167,7 +164,6 @@ class MultiHeadAttention(nn.Module):
             f"{num_heads}"
         )
 
-        self.input_dim = input_dim
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.use_bias = use_bias
@@ -178,7 +174,7 @@ class MultiHeadAttention(nn.Module):
 
         # stack all weight matrices per self-attention head
         self.qkv_proj = nn.Linear(
-            in_features=input_dim,
+            in_features=embed_dim,
             out_features=3 * embed_dim,
             bias=use_bias,
         )
@@ -261,7 +257,6 @@ class MultiHeadAttention(nn.Module):
 class DecoderMultiHeadAttention(nn.Module):
     def __init__(
         self,
-        input_dim: int,
         embed_dim: int,
         num_heads: int,
         use_bias: bool = False,
@@ -272,8 +267,6 @@ class DecoderMultiHeadAttention(nn.Module):
         multi-head attention part in the decoder.
 
         Args:
-            input_dim: In the attention paper [1], `d_k = d_v`, which is here
-                referred to as the input dimensionality
             embed_dim: Embedding dim, referred to as `d_model` in [1]
             num_heads: Number of heads, `h` in [1]
             use_bias: Whether a bias term is used. Default is `False`
@@ -287,7 +280,6 @@ class DecoderMultiHeadAttention(nn.Module):
             f"{num_heads}"
         )
 
-        self.input_dim = input_dim
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.use_bias = use_bias
@@ -298,7 +290,7 @@ class DecoderMultiHeadAttention(nn.Module):
 
         # stack querky and key weight matrices per self-attention head
         self.qk_proj = nn.Linear(
-            in_features=input_dim,
+            in_features=embed_dim,
             out_features=2 * embed_dim,
             bias=use_bias,
         )
@@ -399,7 +391,7 @@ class DecoderMultiHeadAttention(nn.Module):
 class EncoderBlock(nn.Module):
     def __init__(
         self,
-        input_dim: int,
+        embed_dim: int,
         num_heads: int,
         dim_feedfwd: int = 2048,
         dropout: bool = 0.0,
@@ -409,8 +401,7 @@ class EncoderBlock(nn.Module):
         Initialization function.
 
         Args:
-            input_dim: In the attention paper [1], `d_k = d_v`, which is here
-                referred to as the input dimensionality
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
             num_heads: Number of heads, `h` in [1]
             dim_feedfwd: Hidden dimension when applying two-layer MLP
             dropout: Amount of dropout to be applied.
@@ -428,8 +419,7 @@ class EncoderBlock(nn.Module):
 
         # multi-head attention layer
         self.multihead_attn = MultiHeadAttention(
-            input_dim=input_dim,
-            embed_dim=input_dim,
+            embed_dim=embed_dim,
             num_heads=num_heads,
             use_bias=use_bias,
         )
@@ -437,21 +427,21 @@ class EncoderBlock(nn.Module):
         # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
         self.mlp = nn.Sequential(
             nn.Linear(
-                in_features=input_dim, out_features=dim_feedfwd, bias=True
+                in_features=embed_dim, out_features=dim_feedfwd, bias=True
             ),
             nn.Dropout(p=dropout),
             nn.ReLU(),
             nn.Linear(
-                in_features=dim_feedfwd, out_features=input_dim, bias=True
+                in_features=dim_feedfwd, out_features=embed_dim, bias=True
             ),
         )
 
         # layers applied between the main layers
         self.norm_a = nn.LayerNorm(
-            normalized_shape=[input_dim],
+            normalized_shape=[embed_dim],
         )
         self.norm_b = nn.LayerNorm(
-            normalized_shape=[input_dim],
+            normalized_shape=[embed_dim],
         )
         self.dropout = nn.Dropout(p=dropout)
 
@@ -486,7 +476,7 @@ class Encoder(nn.Module):
     def __init__(
         self,
         num_layers: int,
-        input_dim: int,
+        embed_dim: int,
         num_heads: int,
         dim_feedfwd: int,
         dropout: bool = 0.0,
@@ -497,8 +487,7 @@ class Encoder(nn.Module):
 
         Args:
             num_layers: Number of times to stack the encoder block.
-            input_dim: In the attention paper [1], `d_k = d_v`, which is here
-                referred to as the input dimensionality
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
             num_heads: Number of heads, `h` in [1]
             dim_feedfwd: Hidden dimension when applying two-layer MLP
             dropout: Amount of dropout to be applied.
@@ -508,7 +497,7 @@ class Encoder(nn.Module):
         """
         self.num_layers = num_layers
         self.encoder_block = EncoderBlock(
-            input_dim=input_dim,
+            embed_dim=embed_dim,
             num_heads=num_heads,
             dim_feedfwd=dim_feedfwd,
             dropout=dropout,
