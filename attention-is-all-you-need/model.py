@@ -262,6 +262,144 @@ class MultiHeadAttention(nn.Module):
             return o
 
 
+class DecoderMultiHeadAttention(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        embed_dim: int,
+        num_heads: int,
+        use_bias: bool = False,
+    ) -> None:
+        """
+        Multi-head attention, where the queries and keys are taken from the
+        output of the encoder, and the values come from the previous masked
+        multi-head attention part in the decoder.
+
+        Args:
+            input_dim: In the attention paper [1], `d_k = d_v`, which is here
+                referred to as the input dimensionality
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
+            num_heads: Number of heads, `h` in [1]
+            use_bias: Whether a bias term is used. Default is `False`
+
+        [1] http://arxiv.org/abs/1706.03762
+        """
+        super().__init__()
+        assert embed_dim % num_heads == 0, (
+            "In the original attention paper, `d_model = hd_v = hd_k`"
+            f"was chosen, hence `d_model`:`num_heads` cannot be {embed_dim}: "
+            f"{num_heads}"
+        )
+
+        self.input_dim = input_dim
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.use_bias = use_bias
+
+        # dim of queries, keys and values per self-attention head:
+        # (cf. Sec. 3.2.2 of [1])
+        self.head_dim = int(embed_dim / num_heads)
+
+        # stack querky and key weight matrices per self-attention head
+        self.qk_proj = nn.Linear(
+            in_features=input_dim,
+            out_features=2 * embed_dim,
+            bias=use_bias,
+        )
+        self.v_proj = nn.Linear(
+            in_features=embed_dim,
+            out_features=embed_dim,
+            bias=use_bias,
+        )
+        self.o_proj = nn.Linear(
+            in_features=embed_dim,
+            out_features=embed_dim,
+            bias=use_bias,
+        )  # `W^O`
+
+        self._reset_parameters()
+
+    def _reset_parameters(self) -> None:
+        """
+        Initialize (reset) params.
+        """
+
+        # weights:
+        xavier_uniform_(self.qk_proj.weight)
+        xavier_uniform_(self.v_proj.weight)
+        xavier_uniform_(self.o_proj.weight)
+
+        if self.use_bias:
+            # biases:
+            self.qkv_proj.bias.data.fill_(0)
+            self.o_proj.bias.data.fill_(0)
+
+    def forward(
+        self,
+        x_encoder: torch.Tensor,
+        x_decoder: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        return_attention: Optional[bool] = False,
+    ) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Args:
+            x_encoder: Input tensor in shape `(N, seq_length, embed_dim)`
+                that comes from the encoder output (`embed_dim = d_model`
+                in [1])
+            x_decoder: Input tensor in shape `(N, seq_length, embed_dim)`
+                that comes from the previous masked multi-head attention
+                in the decoder
+            mask: Mask, either 2D, 3D or 4D
+            return_attention: Whether to return the attention weights
+
+        Returns:
+            Output in shape `(N, seq_length, self.embed_dim)` and optionally
+            attention weights in shape
+            `(N, self.num_heads, seq_length, seq_length)`
+        """
+        if mask is not None:
+            mask = expand_mask(mask)
+        qk = self.qk_proj(x_encoder)  # `(N, seq_length, 2 * embed_dim)`
+        v = self.v_proj(x_decoder)  # `(N, seq_length, embed_dim)`
+
+        # reshape into `(N, seq_length, self.num_heads, 2 * self.head_dim)`,
+        # then permute into
+        # `(N, self.num_heads, seq_length, 2 * self.head_dim)`;
+        # note that `self.embed_dim = self.num_heads * self.head_dim`
+        qk = qk.reshape(
+            qk.shape[0], qk.shape[1], self.num_heads, 2 * self.head_dim
+        ).permute(dims=(0, 2, 1, 3))
+
+        v = v.reshape(
+            v.shape[0], v.shape[1], self.num_heads, self.head_dim
+        ).permute(dims=(0, 2, 1, 3))
+
+        # separate queries and keys
+        # `(N, self.num_heads, seq_length, self.head_dim)`
+        q_proj, k_proj = qk.chunk(chunks=2, dim=-1)
+
+        # Determine value outputs
+        # shape of `values`: `(N, self.num_heads, seq_length, self.head_dim)`
+        # shape of `attn_weights`:
+        # `(N, self.num_heads, seq_length, seq_length')`
+        values, attn_weights = scaled_dot_product_attn(
+            q_proj, k_proj, v, mask=mask
+        )
+        # permute and reshape
+        # `(N, seq_length, self.embed_dim)`
+        values = values.permute(dims=(0, 2, 1, 3)).reshape(
+            values.shape[0], values.shape[1], self.embed_dim
+        )
+        o = self.o_proj(values)  # `(N, seq_length, self.embed_dim)`
+
+        if return_attention:
+            return o, attn_weights
+        else:
+            return o
+
+
 class EncoderBlock(nn.Module):
     def __init__(
         self,
