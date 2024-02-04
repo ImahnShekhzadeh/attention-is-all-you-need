@@ -324,8 +324,8 @@ class DecoderMultiHeadAttention(nn.Module):
 
     def forward(
         self,
-        x_encoder: torch.Tensor,
-        x_decoder: torch.Tensor,
+        x: torch.Tensor,
+        encoder_output: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
         return_attention: Optional[bool] = False,
     ) -> torch.Tensor:
@@ -333,12 +333,11 @@ class DecoderMultiHeadAttention(nn.Module):
         Forward pass.
 
         Args:
-            x_encoder: Input tensor in shape `(N, seq_length, embed_dim)`
-                that comes from the encoder output (`embed_dim = d_model`
-                in [1])
-            x_decoder: Input tensor in shape `(N, seq_length, embed_dim)`
+            x: Input tensor in shape `(N, seq_length, embed_dim)`
                 that comes from the previous masked multi-head attention
                 in the decoder
+            encoder_output: Encoder output in shape
+                `(N, seq_length, embed_dim)` (`embed_dim = d_model` in [1])
             mask: Mask, either 2D, 3D or 4D
             return_attention: Whether to return the attention weights
 
@@ -349,8 +348,8 @@ class DecoderMultiHeadAttention(nn.Module):
         """
         if mask is not None:
             mask = expand_mask(mask)
-        qk = self.qk_proj(x_encoder)  # `(N, seq_length, 2 * embed_dim)`
-        v = self.v_proj(x_decoder)  # `(N, seq_length, embed_dim)`
+        qk = self.qk_proj(encoder_output)  # `(N, seq_length, 2 * embed_dim)`
+        v = self.v_proj(x)  # `(N, seq_length, embed_dim)`
 
         # reshape into `(N, seq_length, self.num_heads, 2 * self.head_dim)`,
         # then permute into
@@ -445,7 +444,9 @@ class EncoderBlock(nn.Module):
         )
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, x: torch.Tensor, mask: bool = None) -> Tensor:
+    def forward(
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> Tensor:
         """
         Forward pass.
 
@@ -504,7 +505,9 @@ class Encoder(nn.Module):
             use_bias=use_bias,
         )
 
-    def forward(self, x: torch.Tensor, mask: bool = None) -> Tensor:
+    def forward(
+        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> Tensor:
         """
         Forward pass.
 
@@ -523,7 +526,9 @@ class Encoder(nn.Module):
 
         return x
 
-    def _get_attn_maps(self, mask: bool = None) -> List[Tensor]:
+    def _get_attn_maps(
+        self, mask: Optional[torch.Tensor] = None
+    ) -> List[Tensor]:
         """
         Retrieve the learned attention maps per head.
 
@@ -550,3 +555,114 @@ class Encoder(nn.Module):
             attn_maps.append(attn_weights)
 
         return attn_maps
+
+
+class DecoderBlock(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        dim_feedfwd: int = 2048,
+        dropout: bool = 0.0,
+        use_bias: bool = False,
+    ) -> None:
+        """
+        Initialization function.
+
+        Args:
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
+            num_heads: Number of heads, `h` in [1]
+            dim_feedfwd: Hidden dimension when applying two-layer MLP
+            dropout: Amount of dropout to be applied.
+            use_bias: Whether a bias term is used. Default is `False`
+
+        [1] http://arxiv.org/abs/1706.03762
+        """
+        super().__init__()
+
+        # check dropout rate
+        assert 0 <= dropout <= 1, (
+            f"Invalid amount of droput (`{dropout}`) specified. "
+            f"Dropout rate should be between `0` and `1`."
+        )
+
+        # multi-head attention layer
+        self.multihead_attn = MultiHeadAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            use_bias=use_bias,
+        )
+
+        # multi-head attention layer, where queries and keys come from encoder
+        # output
+        self.decoder__multihead_attn = DecoderMultiHeadAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            use_bias=use_bias,
+        )
+
+        # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
+        self.mlp = nn.Sequential(
+            nn.Linear(
+                in_features=embed_dim, out_features=dim_feedfwd, bias=True
+            ),
+            nn.Dropout(p=dropout),
+            nn.ReLU(),
+            nn.Linear(
+                in_features=dim_feedfwd, out_features=embed_dim, bias=True
+            ),
+        )
+
+        # layers applied between the main layers
+        self.norm_a = nn.LayerNorm(
+            normalized_shape=[embed_dim],
+        )
+        self.norm_b = nn.LayerNorm(
+            normalized_shape=[embed_dim],
+        )
+        self.norm_c = nn.LayerNorm(
+            normalized_shape=[embed_dim],
+        )
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        encoder_output: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> Tensor:
+        """
+        Forward pass.
+
+        Args:
+            x: Input tensor of shape `(N, seq_length, input_dim)`
+                (`input_dim = embed_dim = d_model` in [1])
+            encoder_output: Encoder output in shape
+                `(N, seq_length, embed_dim)` (`embed_dim = d_model` in [1])
+            mask: Mask, either 2D, 3D or 4D (prevents attending to future)
+
+        Returns:
+            Output tensor of shape `(N, seq_length, input_dim)`
+        """
+
+        # multi-head attention part
+        out_a = self.multihead_attn(
+            x=x,
+            mask=mask,
+        )
+        out_a = self.norm_a(self.dropout(out_a) + x)
+
+        # multi-head attention part, where queries and keys come from encoder
+        # output
+        out_b = self.decoder__multihead_attn(
+            x=out_a,
+            encoder_output=encoder_output,
+            mask=mask,
+        )
+        out_b = self.norm_b(self.dropout(out_b) + out_a)
+
+        # feed-forward part
+        feedfwd_out = self.dropout(self.mlp(out_b))
+        out = self.norm_c(feedfwd_out + out_b)
+
+        return out
