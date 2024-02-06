@@ -43,14 +43,8 @@ class EncoderBlock(nn.Module):
         )
 
         # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
-        self.mlp = nn.Sequential(
-            nn.Linear(
-                in_features=embed_dim, out_features=dim_feedfwd, bias=True
-            ),
-            nn.ReLU(),
-            nn.Linear(
-                in_features=dim_feedfwd, out_features=embed_dim, bias=True
-            ),
+        self.mlp = PositionwiseFeedForward(
+            embed_dim=embed_dim, dim_feedfwd=dim_feedfwd
         )
 
         # layers applied between the main layers
@@ -136,14 +130,8 @@ class DecoderBlock(nn.Module):
         )
 
         # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
-        self.mlp = nn.Sequential(
-            nn.Linear(
-                in_features=embed_dim, out_features=dim_feedfwd, bias=True
-            ),
-            nn.ReLU(),
-            nn.Linear(
-                in_features=dim_feedfwd, out_features=embed_dim, bias=True
-            ),
+        self.mlp = PositionwiseFeedForward(
+            embed_dim=embed_dim, dim_feedfwd=dim_feedfwd
         )
 
         # layers applied between the main layers
@@ -199,3 +187,47 @@ class DecoderBlock(nn.Module):
         out = self.norm_c(feedfwd_out + out_b)
 
         return out
+
+
+class PositionwiseFeedForward(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        dim_feedfwd: int,
+    ) -> None:
+        """
+        Two-layer MLP as described in Eq. (2) in [1] that is applied to each
+        position separately and identically.
+
+        Args:
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
+            dim_feedfwd: Hidden dimension when applying two-layer MLP
+
+        [1] http://arxiv.org/abs/1706.03762
+        """
+        super().__init__()
+
+        # two-layer MLP (called "feed forward" in [1])
+        self.mlp = nn.Sequential(
+            nn.Linear(
+                in_features=embed_dim, out_features=dim_feedfwd, bias=True
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                in_features=dim_feedfwd, out_features=embed_dim, bias=True
+            ),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Args:
+            x: Input tensor of shape `(N, seq_length, input_dim)`
+                (`input_dim = embed_dim = d_model` in [1])
+
+        Returns:
+            Output tensor of shape `(N, seq_length, input_dim)`
+        """
+
+        return self.mlp(x)
