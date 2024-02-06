@@ -47,7 +47,6 @@ class EncoderBlock(nn.Module):
             nn.Linear(
                 in_features=embed_dim, out_features=dim_feedfwd, bias=True
             ),
-            nn.Dropout(p=dropout),
             nn.ReLU(),
             nn.Linear(
                 in_features=dim_feedfwd, out_features=embed_dim, bias=True
@@ -141,7 +140,6 @@ class DecoderBlock(nn.Module):
             nn.Linear(
                 in_features=embed_dim, out_features=dim_feedfwd, bias=True
             ),
-            nn.Dropout(p=dropout),
             nn.ReLU(),
             nn.Linear(
                 in_features=dim_feedfwd, out_features=embed_dim, bias=True

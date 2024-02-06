@@ -48,7 +48,7 @@ def scaled_dot_product_attn(
 
     # apply mask if provided
     if mask is not None:
-        attn_logits.masked_fill_(mask == 0, -1e6)
+        attn_logits.masked_fill_(mask == 0, -float("inf"))
 
     # calculate attention weights
     attn_weights = softmax(attn_logits, dim=-1)
