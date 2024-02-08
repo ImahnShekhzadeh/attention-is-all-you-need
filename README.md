@@ -9,7 +9,11 @@ docker run -it --rm --gpus all -v $(pwd):/app -p 8888:8888 transformers:1.0.0
 ```
 Then copy-paste one of the displayed URLs into the web browser.
 
-
+To run the python script,
+```
+docker build -f Dockerfile_run -t transformers:1.0.0 .
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0
+```
 
 ## TODO
 [ ] download dataset (write a function `get_dataset()`: https://pytorchnlp.readthedocs.io/en/latest/_modules/torchnlp/datasets/wmt.html)

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y curl && \
     rm $MINICONDA_VERSION && \
     apt-get clean
 
-# Add `conda` to path; initialize `conda`, install specific python version, 
+# Add `conda` to path; initialize `conda`, install specific python version,
 # update `conda` and install `pip` via `conda`
 ENV PATH /opt/conda/bin:$PATH
 RUN conda init bash && \
