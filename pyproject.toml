@@ -15,6 +15,7 @@ dependencies = [
     "wandb~=0.16",
     "matplotlib~=3.2",
     "seaborn~=0.13",
+    "torchinfo~=1.8",
     "pytorch-lightning~=2.1",
 ]
 
