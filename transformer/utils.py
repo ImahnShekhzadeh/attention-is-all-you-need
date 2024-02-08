@@ -23,6 +23,7 @@ from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, random_split
+from torchnlp.datasets import wmt_dataset
 from torchvision import datasets, transforms
 
 
@@ -201,58 +202,29 @@ def check_and_print_args(args: Namespace) -> None:
     print(args)
 
 
-def get_datasets(
-    channels_img: int, train_split: float
-) -> Tuple[
-    datasets.VisionDataset, datasets.VisionDataset, datasets.VisionDataset
-]:
+def get_datasets() -> (
+    Tuple[
+        datasets.VisionDataset, datasets.VisionDataset, datasets.VisionDataset
+    ]
+):
     """
-    Get the train, val and test datasets.
-
-    Args:
-        channels_img: Number of channels in the input images.
-        train_split: Percentage of the training set to use for training.
+    Get the train, val and test datasets of the WMT-2014 EN-DE dataset.
 
     Returns:
         Train, val and test datasets.
     """
 
-    # define data transformation:
-    trafo = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.5 for _ in range(channels_img)],
-                std=[0.5 for _ in range(channels_img)],
-            ),
-        ]
-    )
-
-    full_train_dataset = datasets.MNIST(
-        root="",
+    datasets = wmt_dataset(
+        directory="../data",
         train=True,
-        transform=trafo,
-        target_transform=None,
-        download=True,
-    )  # `60`k images
-
-    num__train_samples = int(train_split * len(full_train_dataset))
-    train_subset, val_subset = random_split(
-        dataset=full_train_dataset,
-        lengths=[
-            num__train_samples,
-            len(full_train_dataset) - num__train_samples,
-        ],
-    )
-    test_dataset = datasets.MNIST(
-        root="",
-        train=False,
-        transform=trafo,
-        target_transform=None,
-        download=True,
+        dev=True,
+        test=True,
+        train_filename="train.tok.clean.bpe.32000",
+        dev_filename="newstest2013.tok.bpe.32000",
+        test_filename="newstest2014.tok.bpe.32000",
     )
 
-    return train_subset, val_subset, test_dataset
+    return datasets
 
 
 def get_dataloaders(
