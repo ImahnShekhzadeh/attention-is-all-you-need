@@ -1,4 +1,5 @@
 import os
+import sys
 from argparse import Namespace
 from datetime import datetime as dt
 
@@ -13,7 +14,7 @@ from utils import (
     cleanup,
     count_parameters,
     get_dataloaders,
-    get_datasets,
+    get_dataset,
     get_model,
     load_checkpoint,
     produce_and_print_confusion_matrix,
@@ -47,8 +48,8 @@ def main(
             world_size=world_size,
         )
 
-    # get iterable datasets
-    train_iterable, val_iterable, test_iterable = get_datasets()
+    # get dataset (dict containing train, val and test datasets)
+    en_de__data = get_dataset()
 
     # get dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(

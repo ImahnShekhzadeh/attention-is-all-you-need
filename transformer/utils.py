@@ -9,10 +9,12 @@ from math import ceil
 from time import perf_counter
 from typing import Dict, Optional, Tuple
 
+import datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
+from datasets import load_dataset
 from prettytable import PrettyTable
 from termcolor import colored
 from torch import Tensor, autocast
@@ -22,13 +24,7 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    DistributedSampler,
-    IterableDataset,
-)
-from torchtext.datasets import IWSLT2017
+from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
 
 
 def total_norm__grads(model: nn.Module) -> float:
@@ -206,20 +202,16 @@ def check_and_print_args(args: Namespace) -> None:
     print(args)
 
 
-def get_datasets() -> Tuple[IterableDataset, IterableDataset, IterableDataset]:
+def get_dataset() -> datasets.dataset_dict.DatasetDict:
     """
     Get the train, val and test datasets of the WMT-2014 EN-DE dataset.
 
     Returns:
-        Train, val and test iterable datasets.
+        Dictionary containing the train, val and test datasets.
     """
-    iterable_datasets = IWSLT2017(
-        root=".data",
-        split=("train", "valid", "test"),
-        language_pair=("de", "en"),
-    )
+    iwslt_2017__datasets = load_dataset("iwslt2017", "iwslt2017-de-en")
 
-    return iterable_datasets
+    return iwslt_2017__datasets
 
 
 def get_dataloaders(
