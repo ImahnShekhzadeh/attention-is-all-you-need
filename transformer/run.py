@@ -47,30 +47,21 @@ def main(
             world_size=world_size,
         )
 
-    # get datasets
-    train_dataset, val_dataset, test_dataset = get_datasets(
-        channels_img=args.channels_img,
-        train_split=args.train_split,
-    )
+    # get iterable datasets
+    train_iterable, val_iterable, test_iterable = get_datasets()
 
     # get dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        test_dataset=test_dataset,
+        train_dataset=train_iterable,
+        val_dataset=val_iterable,
+        test_dataset=test_iterable,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_memory,
         use_ddp=args.use_ddp,
     )
 
-    # define sequence length, input size of LSTM and number of classes based
-    # on input data
-    seq_length = test_loader.dataset[0][0].shape[1]
-    inp_size = test_loader.dataset[0][0].shape[2]
-    num_classes = len(test_loader.dataset.classes)
-
-    # get model
+    # get models
     model = get_model(
         input_size=inp_size,
         num_layers=args.num_layers,

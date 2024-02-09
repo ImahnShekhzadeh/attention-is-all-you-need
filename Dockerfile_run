@@ -21,10 +21,6 @@ RUN conda init bash && \
     conda update -n base -c defaults conda && \
     conda install -c conda-forge pip
 
-# Install PyTorch with CUDA support for 12.1 using `conda`
-RUN conda install -y pytorch=2.1.* torchvision torchaudio pytorch-cuda=12.1 \
-    -c pytorch -c nvidia
-
 # Install JAX with CUDA support using `pip`
 RUN pip install --upgrade\
     jax==0.4.23\

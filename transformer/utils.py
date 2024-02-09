@@ -1,6 +1,7 @@
 import gc
 import json
 import os
+import sys
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from datetime import datetime as dt
@@ -12,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
-from LSTM_model import LSTM
 from prettytable import PrettyTable
 from termcolor import colored
 from torch import Tensor, autocast
@@ -22,9 +22,13 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
-from torch.utils.data import DataLoader, DistributedSampler, random_split
-from torchnlp.datasets import wmt_dataset
-from torchvision import datasets, transforms
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    DistributedSampler,
+    IterableDataset,
+)
+from torchtext.datasets import IWSLT2017
 
 
 def total_norm__grads(model: nn.Module) -> float:
@@ -202,35 +206,26 @@ def check_and_print_args(args: Namespace) -> None:
     print(args)
 
 
-def get_datasets() -> (
-    Tuple[
-        datasets.VisionDataset, datasets.VisionDataset, datasets.VisionDataset
-    ]
-):
+def get_datasets() -> Tuple[IterableDataset, IterableDataset, IterableDataset]:
     """
     Get the train, val and test datasets of the WMT-2014 EN-DE dataset.
 
     Returns:
-        Train, val and test datasets.
+        Train, val and test iterable datasets.
     """
-
-    datasets = wmt_dataset(
-        directory="../data",
-        train=True,
-        dev=True,
-        test=True,
-        train_filename="train.tok.clean.bpe.32000",
-        dev_filename="newstest2013.tok.bpe.32000",
-        test_filename="newstest2014.tok.bpe.32000",
+    iterable_datasets = IWSLT2017(
+        root=".data",
+        split=("train", "valid", "test"),
+        language_pair=("de", "en"),
     )
 
-    return datasets
+    return iterable_datasets
 
 
 def get_dataloaders(
-    train_dataset: datasets.VisionDataset,
-    val_dataset: datasets.VisionDataset,
-    test_dataset: datasets.VisionDataset,
+    train_dataset: IterableDataset,
+    val_dataset: IterableDataset,
+    test_dataset: IterableDataset,
     batch_size: int,
     num_workers: int,
     pin_memory: bool,
