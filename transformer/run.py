@@ -14,7 +14,7 @@ from utils import (
     cleanup,
     count_parameters,
     get_dataloaders,
-    get_dataset,
+    get_datasets,
     get_model,
     load_checkpoint,
     produce_and_print_confusion_matrix,
@@ -48,8 +48,15 @@ def main(
             world_size=world_size,
         )
 
-    # get dataset (dict containing train, val and test datasets)
-    en_de__data = get_dataset()
+    # get ids stored in dict (both for the source and target) for train, val
+    # and test datasets
+    train__dict_ids, val__dict_ids, test__dict_ids = get_datasets(
+        seq_length=args.seq_length,
+        tokenizer_file=args.tokenizer_file,
+        file_name=args.file_name,
+        vocab_size=args.vocab_size,
+        min_frequency=args.min_frequency,
+    )
 
     # get dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(

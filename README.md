@@ -11,13 +11,14 @@ Then copy-paste one of the displayed URLs into the web browser.
 
 To run the python script,
 ```
-docker build -f Dockerfile_run -t transformers:1.0.0 .
+docker build -f Dockerfile -t transformers:1.0.0 .
 docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0
 ```
 As of 08 February 2024, the stable version of `torchtext` is `0.17.0`, which does not have the WMT 2024 EN-DE dataset included, which the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper used. Hence, the IWSLT2017 dataset (with the pairing EN-DE) is used.
 
 ## TODO
-[ ] download dataset (write a function `get_dataset()`: https://pytorchnlp.readthedocs.io/en/latest/_modules/torchnlp/datasets/wmt.html)
+[ ] add `check_args` function
+[ ] add `configs` dir
 [ ] implement `mask`: https://peterbloem.nl/blog/transformers
 ```
 mask = torch.ones(

@@ -40,5 +40,6 @@ COPY pyproject.toml .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -e .
 
-ENTRYPOINT ["jupyter", "notebook", "--ip=0.0.0.0", "--allow-root", \
-            "--no-browser"]
+COPY run_scripts.sh .
+RUN chmod +x ./run_scripts.sh
+ENTRYPOINT ["./run_scripts.sh"]

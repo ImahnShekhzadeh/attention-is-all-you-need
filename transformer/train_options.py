@@ -30,6 +30,15 @@ def get_parser() -> argparse.ArgumentParser:
         help="Dropout rate for the dropout layer.",
     )
     parser.add_argument(
+        "--file_name",
+        type=str,
+        default="transformer/data.txt",
+        help=(
+            "Name of the file to save the sentences of the train, val "
+            "and test sets to, which the tokenizer is then trained on."
+        ),
+    )
+    parser.add_argument(
         "--freq_output__train",
         type=int,
         default=1,
@@ -46,6 +55,14 @@ def get_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="Max norm for gradient clipping.",
+    )
+    parser.add_argument(
+        "--min_frequency",
+        type=int,
+        default=0,
+        help=(
+            "Minimum frequency for a token to be included in the vocabulary."
+        ),
     )
     parser.add_argument(
         "--num_workers",
@@ -121,6 +138,24 @@ def get_parser() -> argparse.ArgumentParser:
         help="Whether to use bidirectional LSTM.",
     )
     parser.add_argument(
+        "--seq_length",
+        type=int,
+        default=512,
+        help=(
+            "Sequence length; if sentence contains less tokens than "
+            "`seq_length`, it will be padded, otherwise truncated."
+        ),
+    )
+    parser.add_argument(
+        "--tokenizer_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to the tokenizer. If provided, the tokenizer will "
+            "be loaded from this path."
+        ),
+    )
+    parser.add_argument(
         "--train_split",
         type=float,
         default=5 / 6,
@@ -135,6 +170,12 @@ def get_parser() -> argparse.ArgumentParser:
         "--use_ddp",
         action="store_true",
         help="Whether to use distributed data parallel (DDP).",
+    )
+    parser.add_argument(
+        "--vocab_size",
+        type=int,
+        default=int(3.7e4),
+        help="Vocabulary size for the tokenizer.",
     )
     parser.add_argument(
         "--wandb__api_key",

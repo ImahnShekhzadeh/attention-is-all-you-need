@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import datetime as dt
 from math import ceil
 from time import perf_counter
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import datasets
 import matplotlib.pyplot as plt
@@ -17,6 +17,10 @@ import wandb
 from datasets import load_dataset
 from prettytable import PrettyTable
 from termcolor import colored
+from tokenizers import Tokenizer
+from tokenizers.models import BPE
+from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.trainers import BpeTrainer
 from torch import Tensor, autocast
 from torch import distributed as dist
 from torch import multiprocessing as mp
@@ -202,16 +206,164 @@ def check_and_print_args(args: Namespace) -> None:
     print(args)
 
 
-def get_dataset() -> datasets.dataset_dict.DatasetDict:
+def get_bpe_tokenizer(
+    seq_length: int,
+    tokenizer_file: Optional[str] = None,
+    files: Optional[List[str] | str] = None,
+    vocab_size: Optional[int] = None,
+    min_frequency: Optional[int] = None,
+) -> Tokenizer:
     """
-    Get the train, val and test datasets of the WMT-2014 EN-DE dataset.
+    Get a tokenizer with byte-pair encoding (BPE) according to the
+    instructions in [1]. If a tokenizer path is provided, the tokenizer will be
+    loaded from this path. If no tokenizer is provided, the tokenizer will be
+    trained on the provided files.
+
+    Args:
+        seq_length: Sequence length; if sentence contains less tokens than
+            `seq_length`, it will be padded, otherwise truncated.
+        tokenizer_file: Path to the tokenizer. If provided, the tokenizer will
+            be loaded from this path.
+        files: List of files to train the tokenizer on.
+        vocab_size: Vocabulary size.
+        min_frequency: Minimum frequency a pair must have to produce a merge
+            operation.
+
+    [1] https://huggingface.co/docs/tokenizers/quicktour
+    """
+    if tokenizer_file is None:
+        assert (
+            files is not None
+            and vocab_size is not None
+            and min_frequency is not None
+        ), (
+            "If no tokenizer is provided, the following arguments must be "
+            "provided: `files`, `vocab_size`, `min_frequency`."
+        )
+
+        tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
+
+        trainer = BpeTrainer(
+            vocab_size=vocab_size,
+            min_frequency=min_frequency,
+            special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"],
+        )
+
+        tokenizer.pre_tokenizer = Whitespace()
+
+        tokenizer.train(files, trainer)
+
+        tokenizer.save(f"bpe_tokenizer_{vocab_size // 1000}k.json")
+    else:
+        assert os.path.exists(
+            tokenizer_file
+        ), "Please provide a valid path to the tokenizer file."
+        assert tokenizer_file.endswith(
+            ".json"
+        ), "If a tokenizer is provided, it must be a JSON file."
+
+        tokenizer = Tokenizer.from_file(tokenizer_file)
+        print(
+            f"=> Tokenizer `{tokenizer_file}` with a vocabulary size of "
+            f"{tokenizer.get_vocab_size()} loaded."
+        )
+
+    # enable padding and truncation.
+    pad_token = "[PAD]"
+    tokenizer.enable_padding(
+        pad_id=tokenizer.token_to_id(pad_token),
+        pad_token=pad_token,
+        length=seq_length,
+        direction="right",
+    )
+    tokenizer.enable_truncation(
+        max_length=seq_length,
+    )
+
+    return tokenizer
+
+
+def get_datasets(
+    seq_length: int,
+    tokenizer_file: str = "bpe_tokenizer_30k.json",
+    file_name: str = "iwslt_2017__sentences.txt",
+    vocab_size: Optional[int] = None,
+    min_frequency: Optional[int] = None,
+) -> Tuple[Dict, Dict, Dict]:
+    """
+    Get the train, val and test datasets of the IWSLT 2017 DE-EN dataset.
+
+    Args:
+        seq_length: Sequence length; if sentence contains less tokens than
+            `seq_length`, it will be padded, otherwise truncated.
+        tokenizer_file: Path to the tokenizer file.
+        file_name: Name of the file to save the sentences of the train, val
+            and test sets to, which the tokenizer is then trained on.
+        vocab_size: Vocabulary size.
+        min_frequency: Minimum frequency a pair must have to produce a merge
+            operation.
 
     Returns:
-        Dictionary containing the train, val and test datasets.
+        Dictionary containing the tokenized texts for the train, val and test
+            split for both German and English.
     """
-    iwslt_2017__datasets = load_dataset("iwslt2017", "iwslt2017-de-en")
 
-    return iwslt_2017__datasets
+    # type: `datasets.dataset_dict.DatasetDict`
+    data = load_dataset("iwslt2017", "iwslt2017-de-en")
+
+    # load tokenizer from file path or train from scratch
+    if tokenizer_file is None:
+        if not os.path.exists(file_name):
+            with open(file_name, "w", encoding="utf-8") as f:
+                for split in data.keys():
+                    num_samples = len(data[split]["translation"])
+
+                    for i in range(num_samples):
+                        f.write(data[split]["translation"][i]["de"] + "\n")
+                        f.write(data[split]["translation"][i]["en"] + "\n")
+
+        tokenizer = get_bpe_tokenizer(
+            seq_length=seq_length,
+            files=[file_name],
+            vocab_size=vocab_size,
+            min_frequency=min_frequency,
+        )
+    else:
+        tokenizer = get_bpe_tokenizer(
+            seq_length=seq_length, tokenizer_file=tokenizer_file
+        )
+
+    def tokenize_text(batch: List[Dict]) -> Dict:
+        """
+        Tokenize test corresponding to train, validation or test splits.
+        This function is specifically written for the IWSLT 2017 dataset.
+
+        Args:
+            batch: List of dictionaries containing the text to tokenize.
+                Dictionary contains keys "de" and "en" for German and English
+                translations respectively.
+
+        Returns:
+            Dictionary containing the tokenized text for both German and
+                English translations.
+        """
+
+        src_ids, target_ids = [], []
+
+        for dict in batch:
+            src_ids.append(tokenizer.encode(dict["de"]).ids)
+            target_ids.append(tokenizer.encode(dict["en"]).ids)
+
+        return {
+            "src_ids": src_ids,
+            "target_ids": target_ids,
+        }
+
+    train__dict_ids = tokenize_text(data["train"]["translation"])
+    val__dict_ids = tokenize_text(data["validation"]["translation"])
+    test__dict_ids = tokenize_text(data["test"]["translation"])
+
+    return train__dict_ids, val__dict_ids, test__dict_ids
 
 
 def get_dataloaders(
