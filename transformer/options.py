@@ -30,15 +30,6 @@ def get_parser() -> argparse.ArgumentParser:
         help="Dropout rate for the dropout layer.",
     )
     parser.add_argument(
-        "--file_name",
-        type=str,
-        default="transformer/data.txt",
-        help=(
-            "Name of the file to save the sentences of the train, val "
-            "and test sets to, which the tokenizer is then trained on."
-        ),
-    )
-    parser.add_argument(
         "--freq_output__train",
         type=int,
         default=1,
@@ -133,11 +124,6 @@ def get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--bidirectional",
-        action="store_true",
-        help="Whether to use bidirectional LSTM.",
-    )
-    parser.add_argument(
         "--seq_length",
         type=int,
         default=512,
@@ -154,12 +140,6 @@ def get_parser() -> argparse.ArgumentParser:
             "Path to the tokenizer. If provided, the tokenizer will "
             "be loaded from this path."
         ),
-    )
-    parser.add_argument(
-        "--train_split",
-        type=float,
-        default=5 / 6,
-        help="Split ratio of train and validation set.",
     )
     parser.add_argument(
         "--use_amp",

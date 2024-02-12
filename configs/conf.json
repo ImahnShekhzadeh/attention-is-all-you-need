@@ -1,0 +1,16 @@
+{
+    "batch_size": 16384,  
+    "dropout_rate": 0.2,
+    "freq_output__train": 1,
+    "freq_output__val": 1,
+    "learning_rate": 2e-3,
+    "min_frequency": 0,
+    "num_epochs": 30,
+    "num_workers": 4,
+    "seed_number": 0,
+    "pin_memory": true,
+    "use_amp": true,
+    "saving_path": "outputs/0",
+    "tokenizer_file": null,
+    "vocab_size": 37000
+}

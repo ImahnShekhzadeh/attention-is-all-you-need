@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import datetime as dt
 from math import ceil
 from time import perf_counter
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import datasets
 import matplotlib.pyplot as plt
@@ -199,17 +199,13 @@ def check_and_print_args(args: Namespace) -> None:
         "``dropout_rate`` should be chosen between 0 (inclusive) and 1 "
         f"(exclusive), but is {args.dropout_rate}."
     )
-    assert 0 < args.train_split < 1, (
-        "``train_split`` should be chosen between 0 and 1, "
-        f"but is {args.train_split}."
-    )
     print(args)
 
 
 def get_bpe_tokenizer(
     seq_length: int,
     tokenizer_file: Optional[str] = None,
-    files: Optional[List[str] | str] = None,
+    iterator: Union[Iterator, List[str]] = None,
     vocab_size: Optional[int] = None,
     min_frequency: Optional[int] = None,
 ) -> Tokenizer:
@@ -222,23 +218,24 @@ def get_bpe_tokenizer(
     Args:
         seq_length: Sequence length; if sentence contains less tokens than
             `seq_length`, it will be padded, otherwise truncated.
-        tokenizer_file: Path to the tokenizer. If provided, the tokenizer will
-            be loaded from this path.
+        iterator: Any iterator over strings or list of strings with which the
+            tokenizer is trained [2].
         files: List of files to train the tokenizer on.
         vocab_size: Vocabulary size.
         min_frequency: Minimum frequency a pair must have to produce a merge
             operation.
 
     [1] https://huggingface.co/docs/tokenizers/quicktour
+    [2] https://github.com/huggingface/tokenizers/blob/c893204c45d7f2cd66958731dd7779548ca54ad5/bindings/python/py_src/tokenizers/__init__.pyi#L1089
     """
     if tokenizer_file is None:
         assert (
-            files is not None
+            iterator is not None
             and vocab_size is not None
             and min_frequency is not None
         ), (
             "If no tokenizer is provided, the following arguments must be "
-            "provided: `files`, `vocab_size`, `min_frequency`."
+            "provided: `iterator`, `vocab_size`, `min_frequency`."
         )
 
         tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
@@ -251,7 +248,7 @@ def get_bpe_tokenizer(
 
         tokenizer.pre_tokenizer = Whitespace()
 
-        tokenizer.train(files, trainer)
+        tokenizer.train_from_iterator(iterator, trainer)
 
         tokenizer.save(f"bpe_tokenizer_{vocab_size // 1000}k.json")
     else:
@@ -286,7 +283,6 @@ def get_bpe_tokenizer(
 def get_datasets(
     seq_length: int,
     tokenizer_file: str = "bpe_tokenizer_30k.json",
-    file_name: str = "iwslt_2017__sentences.txt",
     vocab_size: Optional[int] = None,
     min_frequency: Optional[int] = None,
 ) -> Tuple[Dict, Dict, Dict]:
@@ -297,8 +293,6 @@ def get_datasets(
         seq_length: Sequence length; if sentence contains less tokens than
             `seq_length`, it will be padded, otherwise truncated.
         tokenizer_file: Path to the tokenizer file.
-        file_name: Name of the file to save the sentences of the train, val
-            and test sets to, which the tokenizer is then trained on.
         vocab_size: Vocabulary size.
         min_frequency: Minimum frequency a pair must have to produce a merge
             operation.
@@ -312,25 +306,28 @@ def get_datasets(
     data = load_dataset("iwslt2017", "iwslt2017-de-en")
 
     # load tokenizer from file path or train from scratch
-    if tokenizer_file is None:
-        if not os.path.exists(file_name):
-            with open(file_name, "w", encoding="utf-8") as f:
-                for split in data.keys():
-                    num_samples = len(data[split]["translation"])
+    tokenizer_args = {
+        "seq_length": seq_length,
+    }
 
-                    for i in range(num_samples):
-                        f.write(data[split]["translation"][i]["de"] + "\n")
-                        f.write(data[split]["translation"][i]["en"] + "\n")
+    if tokenizer_file is None:
+        all_sentences = []
+
+        for split in data.keys():
+            for i in range(len(data[split])):
+                all_sentences.extend(data[split]["translation"][i].values())
 
         tokenizer = get_bpe_tokenizer(
-            seq_length=seq_length,
-            files=[file_name],
-            vocab_size=vocab_size,
-            min_frequency=min_frequency,
+            **tokenizer_args
+            | {
+                "vocab_size": vocab_size,
+                "min_frequency": min_frequency,
+                "iterator": all_sentences,
+            },
         )
     else:
         tokenizer = get_bpe_tokenizer(
-            seq_length=seq_length, tokenizer_file=tokenizer_file
+            **tokenizer_args | {"tokenizer_file": tokenizer_file}
         )
 
     def tokenize_text(batch: List[Dict]) -> Dict:

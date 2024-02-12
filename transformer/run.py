@@ -5,10 +5,10 @@ from datetime import datetime as dt
 
 import torch
 import wandb
+from options import get_parser
 from torch import multiprocessing as mp
 from torch import optim
 from torchinfo import summary
-from train_options import get_parser
 from utils import (
     check_accuracy,
     cleanup,
@@ -53,7 +53,6 @@ def main(
     train__dict_ids, val__dict_ids, test__dict_ids = get_datasets(
         seq_length=args.seq_length,
         tokenizer_file=args.tokenizer_file,
-        file_name=args.file_name,
         vocab_size=args.vocab_size,
         min_frequency=args.min_frequency,
     )
