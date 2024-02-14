@@ -317,6 +317,9 @@ def get_datasets(
             for i in range(len(data[split])):
                 all_sentences.extend(data[split]["translation"][i].values())
 
+        # save list to numpy
+        np.save("transformer/all_sentences.npy", all_sentences)
+
         tokenizer = get_bpe_tokenizer(
             **tokenizer_args
             | {

@@ -11,4 +11,4 @@ __pycache__
 test_sth.ipynb
 
 # data on which tokenizer is trained
-data.txt
+all_sentences.npy

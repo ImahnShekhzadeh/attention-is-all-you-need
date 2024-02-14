@@ -11,6 +11,6 @@
     "pin_memory": true,
     "use_amp": true,
     "saving_path": "outputs/0",
-    "tokenizer_file": null,
+    "tokenizer_file": "transformer/bpe_tokenizer_37k.json",
     "vocab_size": 37000
 }
