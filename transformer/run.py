@@ -56,6 +56,11 @@ def main(
         vocab_size=args.vocab_size,
         min_frequency=args.min_frequency,
     )
+    
+    # convert to datasets
+    
+
+    # TODO: implement positional encoding
 
     # get dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(

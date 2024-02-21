@@ -21,6 +21,7 @@ dependencies = [
     "torchinfo~=1.8",
     "datasets~=2.17",
     "tokenizers~=0.15",
+    "torch~=2.1.0"
 ]
 
 [tool.isort]

@@ -12,3 +12,5 @@ test_sth.ipynb
 
 # data on which tokenizer is trained
 all_sentences.npy
+
+transformers.egg-info

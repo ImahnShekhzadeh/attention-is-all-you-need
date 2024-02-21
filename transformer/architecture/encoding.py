@@ -10,8 +10,7 @@ class PositionalEncoding(nn.Module):
         Positional encoder.
 
         Args:
-            max__seq_length: Maximum expected sequence length, chosen as
-                `10000` in [1]
+            max__seq_length: Maximum expected sequence length
             embed_dim: Embedding dim, referred to as `d_model` in [1]
 
         [1] http://arxiv.org/abs/1706.03762

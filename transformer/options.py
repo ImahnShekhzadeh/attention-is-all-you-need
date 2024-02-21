@@ -124,6 +124,15 @@ def get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--max__seq_length",
+        type=int,
+        default=int(1e4),
+        help=(
+            "Maximum expected sequence length; needed for the positional "
+            "encoding."
+        ),
+    )
+    parser.add_argument(
         "--seq_length",
         type=int,
         default=512,
