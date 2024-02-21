@@ -1,24 +1,20 @@
 """
 Define the dataset class for the transformer model.
 """
+from typing import Dict, List
+
 import torch
-from torch.nn import Embedding
 from torch.utils.data import Dataset
 
-from architecture.encoding import PositionalEncoding
 
-
-class TransformerDataset(Dataset):
+class DictDataset(Dataset):
     """
-    Dataset for the transformer model.
+    Dataset containing the source and target token ids in a dictionary.
     """
 
     def __init__(
         self,
-        data: dict[str, list[int]],
-        embed_dim: int,
-        max__seq_length: int,
-        vocab_size: int,
+        data: Dict[str, List[int]],
     ) -> None:
         """
         Initialize the dataset.
@@ -29,18 +25,10 @@ class TransformerDataset(Dataset):
             embed_dim: Embedding dim, referred to as `d_model` in [1].
             max__seq_length: Maximum expected sequence length.
             vocab_size: Vocabulary size.
-        
+
         [1] http://arxiv.org/abs/1706.03762
         """
         self.data = data
-        self.embedding = Embedding(
-            num_embeddings=vocab_size,
-            embedding_dim=embed_dim,
-        )
-        self.positional_encoding = PositionalEncoding(
-            max__seq_length=max__seq_length,
-            embed_dim=embed_dim,
-        )
 
     def __len__(self) -> int:
         """
@@ -59,7 +47,7 @@ class TransformerDataset(Dataset):
             idx: index of the item
 
         Returns:
-            dictionary with the keys "source" and "target", 
+            dictionary with the keys "source" and "target"
         """
         return {
             "source": self.data["src_ids"][idx],

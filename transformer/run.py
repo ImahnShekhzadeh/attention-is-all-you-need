@@ -5,6 +5,7 @@ from datetime import datetime as dt
 
 import torch
 import wandb
+from dataset import DictDataset
 from options import get_parser
 from torch import multiprocessing as mp
 from torch import optim
@@ -56,17 +57,19 @@ def main(
         vocab_size=args.vocab_size,
         min_frequency=args.min_frequency,
     )
-    
-    # convert to datasets
-    
 
-    # TODO: implement positional encoding
+    # convert to datasets
+    train_set, val_set, test_set = (
+        DictDataset(train__dict_ids),
+        DictDataset(val__dict_ids),
+        DictDataset(test__dict_ids),
+    )
 
     # get dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(
-        train_dataset=train_iterable,
-        val_dataset=val_iterable,
-        test_dataset=test_iterable,
+        train_dataset=train_set,
+        val_dataset=val_set,
+        test_dataset=test_set,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_memory,

@@ -285,7 +285,7 @@ def get_datasets(
     tokenizer_file: str = "bpe_tokenizer_30k.json",
     vocab_size: Optional[int] = None,
     min_frequency: Optional[int] = None,
-) -> Tuple[Dict, Dict, Dict]:
+) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Tensor]]:
     """
     Get the train, val and test datasets of the IWSLT 2017 DE-EN dataset.
 
@@ -333,7 +333,7 @@ def get_datasets(
             **tokenizer_args | {"tokenizer_file": tokenizer_file}
         )
 
-    def tokenize_text(batch: List[Dict]) -> Dict:
+    def tokenize_text(batch: List[Dict]) -> Dict[str, Tensor]:
         """
         Tokenize test corresponding to train, validation or test splits.
         This function is specifically written for the IWSLT 2017 dataset.
@@ -355,8 +355,8 @@ def get_datasets(
             target_ids.append(tokenizer.encode(dict["en"]).ids)
 
         return {
-            "src_ids": src_ids,
-            "target_ids": target_ids,
+            "src_ids": torch.tensor(src_ids, dtype=torch.long),
+            "target_ids": torch.tensor(target_ids, dtype=torch.long),
         }
 
     train__dict_ids = tokenize_text(data["train"]["translation"])

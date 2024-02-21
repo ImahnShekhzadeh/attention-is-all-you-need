@@ -65,4 +65,4 @@ class PositionalEncoding(nn.Module):
             `(N, seq_length, input_dim)` if `seq_length <= max__seq_length`,
             else `(N, max__seq_length, input_dim)`
         """
-        return x + self.pos_encod(x)[:, : x.shape[1]]  # uses registered buffer
+        return x + self.pos_encod[:, : x.shape[1]]  # uses registered buffer
