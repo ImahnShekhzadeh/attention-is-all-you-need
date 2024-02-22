@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import torch
 from torch import Tensor, nn
@@ -33,7 +33,7 @@ class Encoder(nn.Module):
         num_layers: int,
         embed_dim: int,
         num_heads: int,
-        dim_feedfwd: int,
+        dim_feedfwd: int = 2048,
         dropout: bool = 0.0,
         use_bias: bool = False,
     ) -> None:
@@ -161,5 +161,89 @@ class Decoder(nn.Module):
                 encoder_output=encoder_output,
                 mask=mask,
             )
+
+        return x
+
+
+class Transformer(nn.Module):
+    def __init__(
+        self,
+        num__encoder_layers: int,
+        num__decoder_layers: int,
+        embed_dim: int,
+        num_heads: int,
+        dim_feedfwd: int = 2048,
+        dropout_rate: float = 0.0,
+        use_bias: bool = False,
+    ) -> None:
+        """
+        Transformer model.
+
+        Args:
+            num__encoder_layers: Number of times to stack the encoder block.
+            num__decoder_layers: Number of times to stack the decoder block.
+            embed_dim: Embedding dim, referred to as `d_model` in [1].
+            num_heads: Number of heads for the multi-head attention.
+            dim_feedfwd: Hidden dimension when applying two-layer MLP.
+            dropout_rate: Dropout rate.
+            use_bias: Whether a bias term is used when performing the
+                self-attention calculation. Default is `False`.
+
+        Returns:
+            Output tensor of shape `(N, num_classes)`
+
+        [1] http://arxiv.org/abs/1706.03762
+        """
+        super().__init__()
+        self.encoder = Encoder(
+            num_layers=num__encoder_layers,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            dim_feedfwd=dim_feedfwd,
+            dropout=dropout_rate,
+            use_bias=use_bias,
+        )
+        self.decoder = Decoder(
+            num_layers=num__decoder_layers,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            dim_feedfwd=dim_feedfwd,
+            dropout=dropout_rate,
+            use_bias=use_bias,
+        )
+        self.fc = nn.Linear(hidden_size, num_classes)
+        # TODO: implement weight sharing
+        # self.pre_softmax_linear = nn.Linear(d_model, vocab_size, bias=False)
+        # self.pre_softmax_linear.weight = self.shared_embedding.weight
+
+    def forward(
+        self,
+        dict_input: Dict[str, Tensor],
+    ) -> torch.Tensor:
+        """
+        Forward pass through the transformer model.
+
+        Args:
+            dict_input: Dictionary with the keys "source" and "target",
+                each containing a tensor (the tokens) of shape
+                `(N, seq_length)`. The "source" tensor is the input to the
+                encoder and the "target" tensor is the input to the decoder.
+
+        Returns:
+            Output tensor of shape `(N, num_classes)`
+        """
+
+        # TODO: apply positional encoding to the input tensors
+
+        # TODO: apply embeddings to the input tensors (write class `Embedding`
+        # in a new file `embedding.py`)
+
+        # TODO: as described in Sec. 3.4 of [1], the target tokens are shifted
+        # by one position to the right
+        # also, the embeddings are multiplied by `sqrt(d_model)`
+
+        x = self.encoder(x, mask)
+        x = self.decoder(x, mask)
+        x = self.fc(x)
 
         return x

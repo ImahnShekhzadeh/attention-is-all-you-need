@@ -94,7 +94,7 @@ def main(
         wandb_logging = args.wandb__api_key is not None
         if wandb_logging:
             wandb.login(key=args.wandb__api_key)
-            wandb.init(project="lstm_vision")
+            wandb.init(project="transformer")
 
         print(
             f"# Train:val:test samples: {len(train_loader.dataset)}"
