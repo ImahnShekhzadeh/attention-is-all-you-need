@@ -1,20 +1,20 @@
 # attention-is-all-you-need
 Implementation of the "Attention is All You Need" (arXiv:1706.03762) Paper
 
-## Run
-Opening the jupyter NB `transformers.ipynb` in the web,
-```
-docker build -f Dockerfile -t transformers:1.0.0 .
-docker run -it --rm --gpus all -v $(pwd):/app -p 8888:8888 transformers:1.0.0
-```
-Then copy-paste one of the displayed URLs into the web browser.
+## Notes
+Note that the tokenizer `bpe_tokenizer_37k.json` used here was obtained by training on the training, validation and test data of the IWSLT2017 DE-EN data. This is the same data that the transformer sees. However, in this [video](https://www.youtube.com/watch?v=zduSFxRajkE), Karpathy recommends to use different data, so you might want to do that.
 
+## Run
 To run the python script,
 ```
 docker build -f Dockerfile -t transformers:1.0.0 .
 docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json
 ```
-As of 08 February 2024, the stable version of `torchtext` is `0.17.0`, which does not have the WMT 2024 EN-DE dataset included, which the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper used. Hence, the IWSLT2017 dataset (with the pairing EN-DE) is used.
+To run the python script locally in a conda environment, which allows for faster debugging,
+```
+python3 -B transformer/run.py --config configs/conf.json
+```
+As of 08 February 2024, the stable version of `torchtext` is `0.17.0`, which does not have the WMT 2024 EN-DE dataset included, which the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper used. Hence, the IWSLT2017 DE-EN dataset is used.
 
 ## TODO
 [ ] add function `apply__embeddings_pos_encod` in `utils.py`
