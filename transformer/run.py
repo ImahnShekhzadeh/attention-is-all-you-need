@@ -1,3 +1,7 @@
+"""
+Run transformer.
+"""
+import logging
 import os
 import sys
 from argparse import Namespace
@@ -15,7 +19,7 @@ from utils import (
     cleanup,
     count_parameters,
     get_dataloaders,
-    get_datasets,
+    get_datasets_and_tokenizer,
     get_model,
     load_checkpoint,
     produce_and_print_confusion_matrix,
@@ -43,6 +47,13 @@ def main(
     if args.seed_number is not None:
         torch.manual_seed(args.seed_number)
 
+    # Setup basic configuration for logging
+    logging.basicConfig(
+        filename="example.log",
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
     if args.use_ddp:
         setup(
             rank=rank,
@@ -50,8 +61,13 @@ def main(
         )
 
     # get ids stored in dict (both for the source and target) for train, val
-    # and test datasets
-    train__dict_ids, val__dict_ids, test__dict_ids = get_datasets(
+    # and test datasets, as well as the tokenizer
+    (
+        train__dict_ids,
+        val__dict_ids,
+        test__dict_ids,
+        tokenizer,
+    ) = get_datasets_and_tokenizer(
         seq_length=args.seq_length,
         tokenizer_file=args.tokenizer_file,
         vocab_size=args.vocab_size,
@@ -75,6 +91,13 @@ def main(
         pin_memory=args.pin_memory,
         use_ddp=args.use_ddp,
     )
+
+    # get pad token ID
+    try:
+        pad_token_id = tokenizer.encode("[PAD]")
+        logging.info(f"Pad token ID: {pad_token_id}")
+    except Exception as e:
+        logging.error(pad_token_id)
 
     # get models
     model = get_model(

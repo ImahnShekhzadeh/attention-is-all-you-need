@@ -238,6 +238,7 @@ class Transformer(nn.Module):
     def forward(
         self,
         dict_input: Dict[str, Tensor],
+        pad_token_id: int,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
@@ -247,6 +248,7 @@ class Transformer(nn.Module):
                 each containing a tensor (the tokens) of shape
                 `(N, seq_length)`. The "source" tensor is the input to the
                 encoder and the "target" tensor is the input to the decoder.
+            pad_token_id: ID of the pad token.
 
         Returns:
             Output tensor of shape `(N, num_classes)`
@@ -258,16 +260,22 @@ class Transformer(nn.Module):
         )
         encoder_input = self.pos_encod(encoder_input)
 
-        decoder_input = math.sqrt(self.embed_dim) * self.embedding(
-            dict_input["target"]
+        # for the decoder, shift the output tokens to the right
+        # (Sec. 3.4 of [1])
+        shifted__decoder_input = dict_input["target"].roll(
+            shifts=(0, 1), dims=(0, 1)
         )
-        decoder_input = self.pos_encod(decoder_input)
+        shifted__decoder_input[:, 0] = pad_token_id
+        shifted__decoder_input = math.sqrt(self.embed_dim) * self.embedding(
+            shifted__decoder_input
+        )
+        shifted__decoder_input = self.pos_encod(shifted__decoder_input)
 
-        # TODO: as described in Sec. 3.4 of [1], the target tokens are shifted
-        # by one position to the right
         # TODO: implement decoder mask
+        # mask = ...
+
         x = self.encoder(encoder_input, mask=None)
-        x = self.decoder(decoder_input, mask=None)
+        x = self.decoder(shifted__decoder_input, mask=None)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
         return x

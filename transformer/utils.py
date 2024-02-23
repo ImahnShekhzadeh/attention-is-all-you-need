@@ -280,12 +280,12 @@ def get_bpe_tokenizer(
     return tokenizer
 
 
-def get_datasets(
+def get_datasets_and_tokenizer(
     seq_length: int,
     tokenizer_file: str = "bpe_tokenizer_30k.json",
     vocab_size: Optional[int] = None,
     min_frequency: Optional[int] = None,
-) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Tensor]]:
+) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Tensor], Tokenizer]:
     """
     Get the train, val and test datasets of the IWSLT 2017 DE-EN dataset.
 
@@ -299,7 +299,8 @@ def get_datasets(
 
     Returns:
         Dictionary containing the tokenized texts for the train, val and test
-            split for both German and English.
+            split for both German and English and the tokenizer used for the
+            encoding.
     """
 
     # type: `datasets.dataset_dict.DatasetDict`
@@ -363,7 +364,7 @@ def get_datasets(
     val__dict_ids = tokenize_text(data["validation"]["translation"])
     test__dict_ids = tokenize_text(data["test"]["translation"])
 
-    return train__dict_ids, val__dict_ids, test__dict_ids
+    return train__dict_ids, val__dict_ids, test__dict_ids, tokenizer
 
 
 def get_dataloaders(
