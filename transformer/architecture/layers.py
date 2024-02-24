@@ -178,7 +178,6 @@ class DecoderBlock(nn.Module):
         out_b = self.decoder__multihead_attn(
             x=out_a,
             encoder_output=encoder_output,
-            mask=mask,
         )
         out_b = self.norm_b(self.dropout(out_b) + out_a)
 

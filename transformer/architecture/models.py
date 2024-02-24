@@ -272,10 +272,10 @@ class Transformer(nn.Module):
         shifted__decoder_input = self.pos_encod(shifted__decoder_input)
 
         # TODO: implement decoder mask
-        # mask = ...
+        mask = None
 
         x = self.encoder(encoder_input, mask=None)
-        x = self.decoder(shifted__decoder_input, mask=None)
+        x = self.decoder(shifted__decoder_input, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
         return x

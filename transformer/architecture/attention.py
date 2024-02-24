@@ -235,14 +235,14 @@ class DecoderMultiHeadAttention(nn.Module):
 
         if self.use_bias:
             # biases:
-            self.qkv_proj.bias.data.fill_(0)
+            self.qk_proj.bias.data.fill_(0)
+            self.v_proj.bias.data.fill_(0)
             self.o_proj.bias.data.fill_(0)
 
     def forward(
         self,
         x: torch.Tensor,
         encoder_output: torch.Tensor,
-        mask: Optional[torch.Tensor] = None,
         return_attention: Optional[bool] = False,
     ) -> torch.Tensor:
         """
@@ -254,7 +254,6 @@ class DecoderMultiHeadAttention(nn.Module):
                 in the decoder
             encoder_output: Encoder output in shape
                 `(N, seq_length, embed_dim)` (`embed_dim = d_model` in [1])
-            mask: Mask, either 2D, 3D or 4D
             return_attention: Whether to return the attention weights
 
         Returns:
@@ -262,8 +261,6 @@ class DecoderMultiHeadAttention(nn.Module):
             attention weights in shape
             `(N, self.num_heads, seq_length, seq_length)`
         """
-        if mask is not None:
-            mask = expand_mask(mask)
         qk = self.qk_proj(encoder_output)  # `(N, seq_length, 2 * embed_dim)`
         v = self.v_proj(x)  # `(N, seq_length, embed_dim)`
 
@@ -287,9 +284,7 @@ class DecoderMultiHeadAttention(nn.Module):
         # shape of `values`: `(N, self.num_heads, seq_length, self.head_dim)`
         # shape of `attn_weights`:
         # `(N, self.num_heads, seq_length, seq_length')`
-        values, attn_weights = scaled_dot_product_attn(
-            q_proj, k_proj, v, mask=mask
-        )
+        values, attn_weights = scaled_dot_product_attn(q_proj, k_proj, v)
         # permute and reshape
         # `(N, seq_length, self.embed_dim)`
         values = values.permute(dims=(0, 2, 1, 3)).reshape(
