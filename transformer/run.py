@@ -47,13 +47,6 @@ def main(
     if args.seed_number is not None:
         torch.manual_seed(args.seed_number)
 
-    # Setup basic configuration for logging
-    logging.basicConfig(
-        filename="example.log",
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-
     if args.use_ddp:
         setup(
             rank=rank,
@@ -212,6 +205,13 @@ def main(
 
 
 if __name__ == "__main__":
+    # Setup basic configuration for logging
+    logging.basicConfig(
+        filename="example.log",
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
     parser = get_parser()
     args = retrieve_args(parser)
 
