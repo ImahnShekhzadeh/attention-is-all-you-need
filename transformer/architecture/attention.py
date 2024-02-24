@@ -43,7 +43,8 @@ def scaled_dot_product_attn(
     assert k.shape[-2] == v.shape[-2]
 
     # calculate attention logits
-    # `(N, num_heads, seq_length, seq_length')`
+    # `(N, num_heads, seq_length, seq_length')`,
+    # `(N, seq_length, seq_length')` or `(seq_length, seq_length')`
     attn_logits = q @ k.mT / math.sqrt(q.shape[-1])
 
     # apply mask if provided

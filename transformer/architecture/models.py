@@ -11,13 +11,16 @@ from layers import DecoderBlock, EncoderBlock
 def expand_mask(mask: torch.Tensor) -> torch.Tensor:
     """
     Helper function to support different mask shapes.
-    Output shape supports `(batch_size, num_heads, seq_length, seq_length)`
-    If 2D: broadcasted over `batch_size` and `num_heads`
+    Output shape supports `(N, num_heads, seq_length, seq_length)`
+    If 2D: broadcasted over `N` and `num_heads`
     If 3D: broadcasted over `num_heads`
     If 4D: leave as is
 
     Args:
         mask: Mask.
+
+    Returns:
+        Expanded mask of shape `(N, num_heads, seq_length, seq_length)`
     """
     assert (
         mask.ndim >= 2
@@ -254,6 +257,7 @@ class Transformer(nn.Module):
             Output tensor of shape `(N, num_classes)`
         """
 
+        # embedding and positional encoding for the encoder,
         # `(N, seq_length, embed_dim)`
         encoder_input = math.sqrt(self.embed_dim) * self.embedding(
             dict_input["source"]
@@ -261,7 +265,8 @@ class Transformer(nn.Module):
         encoder_input = self.pos_encod(encoder_input)
 
         # for the decoder, shift the output tokens to the right
-        # (Sec. 3.4 of [1])
+        # (Sec. 3.4 of [1]), then embed and encode,
+        # `(N, seq_length, embed_dim)`
         shifted__decoder_input = dict_input["target"].roll(
             shifts=(0, 1), dims=(0, 1)
         )
@@ -271,9 +276,19 @@ class Transformer(nn.Module):
         )
         shifted__decoder_input = self.pos_encod(shifted__decoder_input)
 
-        # TODO: implement decoder mask
-        mask = None
+        # implement mask for the first self-attention mechanism of shape
+        # `(seq_length, seq_length)`, also cf.
+        # https://peterbloem.nl/blog/transformers
+        mask = torch.tril(
+            torch.ones(
+                encoder_input.shape[1],
+                encoder_input.shape[1],
+                device=encoder_input.device,
+            ),
+            diagonal=0,
+        )
 
+        # forward pass through encoder, decoder and linear layer
         x = self.encoder(encoder_input, mask=None)
         x = self.decoder(shifted__decoder_input, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
