@@ -119,7 +119,7 @@ def main(
             wandb.login(key=args.wandb__api_key)
             wandb.init(project="transformer")
 
-        print(
+        logging.info(
             f"# Train:val:test samples: {len(train_loader.dataset)}"
             f":{len(val_loader.dataset)}:{len(test_loader.dataset)}\n"
         )
@@ -129,7 +129,7 @@ def main(
 
     # compile model if specified
     if args.compile_mode is not None:
-        print(f"\nCompiling model in ``{args.compile_mode}`` mode...\n")
+        logging.info(f"\nCompiling model in ``{args.compile_mode}`` mode...\n")
         model = torch.compile(model, mode=args.compile_mode, fullgraph=False)
 
     # Optimizer:
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
     if torch.cuda.is_available():
         list_gpus = [torch.cuda.get_device_name(i) for i in range(world_size)]
-        print(f"\nGPU(s): {list_gpus}\n")
+        logging.info(f"\nGPU(s): {list_gpus}\n")
 
     if args.use_ddp and world_size > 1:
         # When using a single GPU per process and per

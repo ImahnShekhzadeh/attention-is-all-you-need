@@ -1,5 +1,6 @@
 import gc
 import json
+import logging
 import os
 import sys
 from argparse import ArgumentParser, Namespace
@@ -159,7 +160,7 @@ def retrieve_args(parser: ArgumentParser) -> Namespace:
 
             parser.set_defaults(**config_args)
             args = parser.parse_args()
-            print(
+            logging.info(
                 colored(
                     f"Config file '{args.config}' found and loaded.\n\n",
                     color="green",
@@ -199,7 +200,7 @@ def check_and_print_args(args: Namespace) -> None:
         "``dropout_rate`` should be chosen between 0 (inclusive) and 1 "
         f"(exclusive), but is {args.dropout_rate}."
     )
-    print(args)
+    logging.info(args)
 
 
 def get_bpe_tokenizer(
@@ -260,7 +261,7 @@ def get_bpe_tokenizer(
         ), "If a tokenizer is provided, it must be a JSON file."
 
         tokenizer = Tokenizer.from_file(tokenizer_file)
-        print(
+        logging.info(
             f"=> Tokenizer `{tokenizer_file}` with a vocabulary size of "
             f"{tokenizer.get_vocab_size()} loaded."
         )
@@ -583,7 +584,7 @@ def train_and_validate(
                     step=epoch,
                 )
 
-            print(
+            logging.info(
                 f"\nEpoch {epoch}: {perf_counter() - t0:.3f} [sec]\t"
                 f"Mean train/val loss: {train_losses[epoch]:.4f}/"
                 f"{val_losses[epoch]:.4f}\tTrain/val acc: "
@@ -606,7 +607,7 @@ def train_and_validate(
         )
 
     if rank in [0, torch.device("cpu")]:
-        end_timer_and_print(
+        end_timer_and_log(
             start_time=start_time,
             device=rank,
             local_msg=(
@@ -645,7 +646,7 @@ def start_timer(device: torch.device | int) -> float:
     return perf_counter()
 
 
-def end_timer_and_print(
+def end_timer_and_log(
     start_time: float, device: torch.device | int, local_msg: str = ""
 ) -> float:
     """
@@ -681,7 +682,7 @@ def end_timer_and_print(
             f"{torch.cuda.max_memory_allocated(device=device) / 1024**2:.3f} "
             "[MB]"
         )
-    print(msg)
+    logging.info(msg)
 
     return time_diff
 
@@ -754,7 +755,7 @@ def print__batch_info(
             percentage=prog_perc,
             loss=loss,
         )
-        print(f"{formatted_line}")
+        logging.info(f"{formatted_line}")
 
 
 def load_checkpoint(
@@ -772,7 +773,7 @@ def load_checkpoint(
     model.load_state_dict(state_dict=checkpoint["state_dict"])
     if optimizer is not None:
         optimizer.load_state_dict(state_dict=checkpoint["optimizer"])
-    print("=> Checkpoint loaded.")
+    logging.info("=> Checkpoint loaded.")
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -784,11 +785,11 @@ def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
         filename (pth.tar)      -- The name of the checkpoint.
     """
     torch.save(state, filename)
-    print("\n=> Saving checkpoint")
+    logging.info("\n=> Saving checkpoint")
 
 
 def count_parameters(model: nn.Module) -> None:
-    """Print the number of parameters per module.
+    """Log the number of parameters per module.
 
     Args:
         model: Model for which we want the total number of parameters.
@@ -801,7 +802,7 @@ def count_parameters(model: nn.Module) -> None:
         param = parameter.numel()
         table.add_row([name, param])
         total_params += param
-    print(table)
+    logging.info(table)
 
 
 def check_accuracy(loader, model, mode, device):
@@ -839,7 +840,7 @@ def check_accuracy(loader, model, mode, device):
             num_correct += (predictions == labels).sum()
             num_samples += predictions.size(0)
 
-        print(
+        logging.info(
             f"{mode.capitalize()} data: Got {num_correct}/{num_samples} with "
             f"accuracy {(100 * num_correct / num_samples):.2f} %"
         )
@@ -886,7 +887,7 @@ def produce_and_print_confusion_matrix(
             total_sums += element
         confusion_matrix[i] /= total_sums
 
-    print(f"\nConfusion matrix:\n\n{confusion_matrix}")
+    logging.info(f"\nConfusion matrix:\n\n{confusion_matrix}")
 
     # Convert PyTorch tensor to numpy array:
     fig = plt.figure()
