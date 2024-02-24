@@ -87,7 +87,7 @@ def main(
 
     # get pad token ID
     try:
-        pad_token_id = tokenizer.encode("[PAD]")
+        pad_token_id = tokenizer.encode("[PAD]").ids[0]
         logging.info(f"Pad token ID: {pad_token_id}")
     except Exception as e:
         logging.error(pad_token_id)
