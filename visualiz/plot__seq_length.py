@@ -1,39 +1,27 @@
 """
-Plot the sequence lengths (over train, val and test concatenatted) of the 
+Plot the sequence lengths (over train, val and test concatenatted) of the
 sentences in the the IWSLT2017 DE-EN dataset for a fixed vocabulary size.
 """
-import logging
-import os
-
 import argparse
 from datetime import datetime as dt
+
 import numpy as np
 from datasets import load_dataset
-from matplotlib import pyplot as plt, ticker
+from matplotlib import pyplot as plt
+from matplotlib import ticker
 from tokenizers import Tokenizer
-
 from utils import check_args, get_len_tokenized_data
+
 
 def main(args: argparse.Namespace) -> None:
     """Main function."""
 
-    # Setup basic configuration for logging
-    logging.basicConfig(
-        filename="dataset.log",
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-    
     # load dataset
     # type: `datasets.dataset_dict.DatasetDict`
     data = load_dataset("iwslt2017", "iwslt2017-de-en")
 
     # load tokenizer with fixed vocab length
     tokenizer = Tokenizer.from_file(args.tokenizer_file)
-    logging.info(
-        f"=> Tokenizer `{args.tokenizer_file}` with a vocabulary size of "
-        f"{tokenizer.get_vocab_size()} loaded."
-    )
 
     # get token lengths (sequence lengths)
     token_lengths = get_len_tokenized_data(tokenizer=tokenizer, data=data)
@@ -43,12 +31,15 @@ def main(args: argparse.Namespace) -> None:
 
     plt.hist(token_lengths, bins=bins, align="left")
     ax = plt.gca()
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(base=1))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(base=1))
-    plt.xlabel("Sequency length")
-    plt.ylabel("Frequency")
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(base=2))
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(base=10))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(base=5))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(base=100))
+    plt.xlim(left=0)
+    plt.xlabel("Sequence length (# tokens)")
+    plt.ylabel("Frequency (# occurrence)")
     plt.savefig(
-        f"seq_lengths_{dt.now().strftime('%dp%mp%y_%Hp%Mp%S')}.pdf"
+        "seq_lengths.pdf", bbox_inches="tight", pad_inches=0.01, dpi=600
     )
     plt.close()
 
@@ -59,7 +50,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--tokenizer_file",
-        required=True,
         type=str,
         default="../transformer/bpe_tokenizer_37k.json",
         help=(
@@ -68,7 +58,7 @@ if __name__ == "__main__":
         ),
     )
     args = parser.parse_args()
-    
+
     check_args(args)
 
     main(args)

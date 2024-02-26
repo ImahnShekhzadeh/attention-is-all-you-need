@@ -2,10 +2,11 @@
 Utility functions/classes for the script `plot__seq_length.py`.
 """
 import argparse
+import os
 from typing import List
+
 import datasets
 from tokenizers import Tokenizer
-import os
 
 
 def check_args(args: argparse.Namespace) -> None:
@@ -29,7 +30,7 @@ def get_len_tokenized_data(
 
     Args:
         tokenizer: Pre-trained tokenizer.
-        data: Dataset (both train, val and test split, as well as DE and EN 
+        data: Dataset (both train, val and test split, as well as DE and EN
             source/target sentences)
 
     Returns:
