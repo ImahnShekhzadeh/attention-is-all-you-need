@@ -22,6 +22,7 @@ def main(args: argparse.Namespace) -> None:
 
     # load tokenizer with fixed vocab length
     tokenizer = Tokenizer.from_file(args.tokenizer_file)
+    vocab_size = tokenizer.get_vocab_size()
 
     # get token lengths (sequence lengths)
     token_lengths = get_len_tokenized_data(tokenizer=tokenizer, data=data)
@@ -33,13 +34,16 @@ def main(args: argparse.Namespace) -> None:
     ax = plt.gca()
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(base=2))
     ax.xaxis.set_major_locator(ticker.MultipleLocator(base=10))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(base=5))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(base=100))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(base=int(1e3)))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(base=int(5e3)))
     plt.xlim(left=0)
     plt.xlabel("Sequence length (# tokens)")
     plt.ylabel("Frequency (# occurrence)")
     plt.savefig(
-        "seq_lengths.pdf", bbox_inches="tight", pad_inches=0.01, dpi=600
+        f"seq_lengths_{vocab_size // 1000}k.pdf",
+        bbox_inches="tight",
+        pad_inches=0.01,
+        dpi=600,
     )
     plt.close()
 
