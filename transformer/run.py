@@ -86,11 +86,10 @@ def main(
     )
 
     # get pad token ID
-    try:
-        pad_token_id = tokenizer.encode("[PAD]").ids[0]
-        logging.info(f"Pad token ID: {pad_token_id}")
-    except Exception as e:
-        logging.error(pad_token_id)
+    pad_token_id = tokenizer.token_to_id("[PAD]")
+    assert (
+        pad_token_id is not None
+    ), "Pad token ID not found. Please use another tokenizer."
 
     # get models
     model = get_model(
@@ -113,8 +112,9 @@ def main(
             wandb.init(project="transformer")
 
         logging.info(
-            f"# Train:val:test samples: {len(train_loader.dataset)}"
-            f":{len(val_loader.dataset)}:{len(test_loader.dataset)}\n"
+            f"Pad token ID: {pad_token_id}\n# Train:val:test samples: "
+            f"{len(train_loader.dataset)}:{len(val_loader.dataset)}"
+            f":{len(test_loader.dataset)}\n"
         )
         summary(model, (args.batch_size, seq_length, inp_size))
     else:
@@ -205,15 +205,18 @@ def main(
 
 
 if __name__ == "__main__":
+    parser = get_parser()
+    args = retrieve_args(parser)
+
     # Setup basic configuration for logging
     logging.basicConfig(
-        filename="example.log",
+        filename=os.path.join(args.saving_path, "run.log"),
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-
-    parser = get_parser()
-    args = retrieve_args(parser)
+    if args.config is not None and os.path.exists(args.config):
+        logging.info(f"Config file '{args.config}' found and loaded.")
+    logging.info(args)
 
     # define world size (number of GPUs)
     world_size = torch.cuda.device_count()

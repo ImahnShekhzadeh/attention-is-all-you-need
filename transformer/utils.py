@@ -1,7 +1,9 @@
+"""Utility functions and classes."""
 import gc
 import json
 import logging
 import os
+import shutil
 import sys
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
@@ -17,7 +19,6 @@ import torch
 import wandb
 from datasets import load_dataset
 from prettytable import PrettyTable
-from termcolor import colored
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import Whitespace
@@ -160,27 +161,32 @@ def retrieve_args(parser: ArgumentParser) -> Namespace:
 
             parser.set_defaults(**config_args)
             args = parser.parse_args()
-            logging.info(
-                colored(
-                    f"Config file '{args.config}' found and loaded.\n\n",
-                    color="green",
-                )
-            )
         else:
             raise ValueError(f"Config file '{args.config}' not found.")
 
-    check_and_print_args(args)
+    check_args(args)
 
     return args
 
 
-def check_and_print_args(args: Namespace) -> None:
+def check_args(args: Namespace) -> None:
     """
     Check provided arguments and print them to CLI.
 
     Args:
         args: Arguments provided by the user.
     """
+
+    # create saving dir if non-existent, check if saving path is empty, and
+    # copy JSON config file there
+    os.makedirs(args.saving_path, exist_ok=True)
+    if not len(os.listdir(args.saving_path)) == 0:
+        raise ValueError(
+            f"Saving path `{args.saving_path}` is not empty! Please provide "
+            "another path."
+        )
+    shutil.copy(src=args.config, dst=args.saving_path)
+
     assert args.compile_mode in [
         None,
         "default",
@@ -200,7 +206,6 @@ def check_and_print_args(args: Namespace) -> None:
         "``dropout_rate`` should be chosen between 0 (inclusive) and 1 "
         f"(exclusive), but is {args.dropout_rate}."
     )
-    logging.info(args)
 
 
 def get_bpe_tokenizer(
@@ -347,7 +352,7 @@ def get_datasets_and_tokenizer(
 
         Returns:
             Dictionary containing the tokenized text for both German and
-                English translations.
+            English translations.
         """
 
         src_ids, target_ids = [], []

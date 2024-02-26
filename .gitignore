@@ -17,3 +17,6 @@ transformers.egg-info
 
 # log files
 *.log
+
+# output dir
+outputs/
