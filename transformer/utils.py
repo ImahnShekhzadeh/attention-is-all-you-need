@@ -28,7 +28,6 @@ from torch import distributed as dist
 from torch import multiprocessing as mp
 from torch import nn
 from torch.cuda.amp import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
 
@@ -77,55 +76,6 @@ def setup(rank: int, world_size: int, backend: str = "nccl"):
         rank=rank,
         world_size=world_size,
     )
-
-
-def get_model(
-    input_size: int,
-    num_layers: int,
-    hidden_size: int,
-    num_classes: int,
-    sequence_length: int,
-    bidirectional: bool,
-    dropout_rate: float,
-    device: torch.device | int,
-    use_ddp: bool = False,
-) -> nn.Module:
-    """
-
-    Args:
-        input_size: input is assumed to be in shape `(N, 1, H, W)`,
-            where `W` is the input size
-        num_layers: number of hidden layers for the NN
-        hidden_size: number of features in hidden state `h`
-        num_classes: number of classes our LSTM is supposed to predict,
-            `10` for MNIST
-        sequence_length: input is of shape `(N, sequence_length, input_size)`
-        bidirectional: if `True`, use bidirectional LSTM
-        dropout_rate: dropout rate for the dropout layer
-        device: Device on which the code is executed. Can also be an int
-            representing the GPU ID.
-        use_ddp: Whether to use DDP.
-
-    Returns:
-        Model.
-    """
-
-    # define model
-    model = LSTM(
-        input_size=input_size,
-        sequence_length=sequence_length,
-        num_layers=num_layers,
-        hidden_size=hidden_size,
-        num_classes=num_classes,
-        bidirectional=bidirectional,
-        dropout_rate=dropout_rate,
-    )
-    model.to(device)
-
-    if use_ddp:
-        model = DDP(model, device_ids=[device])
-
-    return model
 
 
 def retrieve_args(parser: ArgumentParser) -> Namespace:

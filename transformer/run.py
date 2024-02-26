@@ -10,9 +10,9 @@ from datetime import datetime as dt
 import torch
 import wandb
 from dataset import DictDataset
-from options import get_parser
 from torch import multiprocessing as mp
 from torch import optim
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torchinfo import summary
 from utils import (
     check_accuracy,
@@ -20,7 +20,6 @@ from utils import (
     count_parameters,
     get_dataloaders,
     get_datasets_and_tokenizer,
-    get_model,
     load_checkpoint,
     produce_and_print_confusion_matrix,
     retrieve_args,
@@ -28,6 +27,9 @@ from utils import (
     setup,
     train_and_validate,
 )
+
+from architecture.models import Transformer
+from options import get_parser
 
 
 def main(
@@ -91,18 +93,13 @@ def main(
         pad_token_id is not None
     ), "Pad token ID not found. Please use another tokenizer."
 
-    # get models
-    model = get_model(
-        input_size=inp_size,
-        num_layers=args.num_layers,
-        hidden_size=args.hidden_size,
-        num_classes=num_classes,
-        sequence_length=seq_length,
-        bidirectional=args.bidirectional,
-        dropout_rate=args.dropout_rate,
-        device=rank,
-        use_ddp=args.use_ddp,
-    )
+    # define transformer
+    model = Transformer()
+
+    model.to(rank)
+
+    if args.use_ddp:
+        model = DDP(model, device_ids=[rank])
 
     # setup Weights & Biases, print # data and model summary
     if rank in [0, torch.device("cpu")]:
