@@ -11,6 +11,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Hyperparameters and parameters"
     )
+
+    # generic arguments
     parser.add_argument(
         "--compile_mode",
         type=str,
@@ -22,12 +24,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Configuration file.",
-    )
-    parser.add_argument(
-        "--dropout_rate",
-        type=float,
-        default=0.0,
-        help="Dropout rate for the dropout layer.",
     )
     parser.add_argument(
         "--freq_output__train",
@@ -46,14 +42,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="Max norm for gradient clipping.",
-    )
-    parser.add_argument(
-        "--min_frequency",
-        type=int,
-        default=0,
-        help=(
-            "Minimum frequency for a token to be included in the vocabulary."
-        ),
     )
     parser.add_argument(
         "--num_workers",
@@ -77,24 +65,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="If specified, seed number is used for RNG.",
-    )
-    parser.add_argument(
-        "--hidden_size",
-        type=int,
-        default=256,
-        help="Hidden size for the first LSTM layer.",
-    )
-    parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=3,
-        help="Number of stacked LSTM layers.",
-    )
-    parser.add_argument(
-        "--channels_img",
-        type=int,
-        default=1,
-        help="Number of channels in the MNIST input images.",
     )
     parser.add_argument(
         "--learning_rate",
@@ -124,13 +94,48 @@ def get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--max__seq_length",
+        "--use_amp",
+        action="store_true",
+        help="Whether to use automatic mixed precision (AMP).",
+    )
+    parser.add_argument(
+        "--use_ddp",
+        action="store_true",
+        help="Whether to use distributed data parallel (DDP).",
+    )
+    parser.add_argument(
+        "--wandb__api_key",
+        type=str,
+        default=None,
+        help="API key for wandb (https://wandb.ai).",
+    )
+
+    # transformer-specific arguments
+    parser.add_argument(
+        "--dropout_rate",
+        type=float,
+        default=0.0,
+        help="Dropout rate for the dropout layer.",
+    )
+    parser.add_argument(
+        "--min_frequency",
         type=int,
-        default=int(1e4),
+        default=0,
         help=(
-            "Maximum expected sequence length; needed for the positional "
-            "encoding."
+            "Minimum frequency for a token to be included in the vocabulary."
         ),
+    )
+    parser.add_argument(
+        "--num__decoder_layers",
+        type=int,
+        default=6,
+        help="Number of times to stack the decoder block.",
+    )
+    parser.add_argument(
+        "--num__encoder_layers",
+        type=int,
+        default=6,
+        help="Number of times to stack the encoder block.",
     )
     parser.add_argument(
         "--seq_length",
@@ -151,25 +156,10 @@ def get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--use_amp",
-        action="store_true",
-        help="Whether to use automatic mixed precision (AMP).",
-    )
-    parser.add_argument(
-        "--use_ddp",
-        action="store_true",
-        help="Whether to use distributed data parallel (DDP).",
-    )
-    parser.add_argument(
         "--vocab_size",
         type=int,
         default=int(3.7e4),
         help="Vocabulary size for the tokenizer.",
     )
-    parser.add_argument(
-        "--wandb__api_key",
-        type=str,
-        default=None,
-        help="API key for wandb (https://wandb.ai).",
-    )
+
     return parser
