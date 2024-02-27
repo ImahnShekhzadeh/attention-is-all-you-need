@@ -112,10 +112,25 @@ def get_parser() -> argparse.ArgumentParser:
 
     # transformer-specific arguments
     parser.add_argument(
+        "--dim_feedfwd",
+        type=int,
+        default=2048,
+        help=(
+            "Hidden dimension when applying two-layer MLP in encoder and "
+            "decoder blocks."
+        ),
+    )
+    parser.add_argument(
         "--dropout_rate",
         type=float,
         default=0.0,
         help="Dropout rate for the dropout layer.",
+    )
+    parser.add_argument(
+        "--embedding_dim",
+        type=int,
+        default=512,
+        help="Embedding dimensionality (`d_model`).",
     )
     parser.add_argument(
         "--min_frequency",
@@ -136,6 +151,12 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         default=6,
         help="Number of times to stack the encoder block.",
+    )
+    parser.add_argument(
+        "--num_heads",
+        type=int,
+        default=8,
+        help="Number of heads for the multi-head attention.",
     )
     parser.add_argument(
         "--seq_length",

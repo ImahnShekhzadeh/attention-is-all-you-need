@@ -17,10 +17,10 @@ from torchinfo import summary
 from utils import (
     check_accuracy,
     cleanup,
-    count_parameters,
     get_dataloaders,
     get_datasets_and_tokenizer,
     load_checkpoint,
+    log_parameter_table,
     produce_and_print_confusion_matrix,
     retrieve_args,
     save_checkpoint,
@@ -94,26 +94,33 @@ def main(
     ), "Pad token ID not found. Please use another tokenizer."
 
     # define transformer
-    model = Transformer()
-
+    model = Transformer(
+        num__encoder_layers=args.num__encoder_layers,
+        num__decoder_layers=args.num__decoder_layers,
+        embedding_dim=args.embedding_dim,
+        num_heads=args.num_heads,
+        vocab_size=tokenizer.get_vocab_size(),
+        seq_length=args.seq_length,
+        dim_feedfwd=args.dim_feedfwd,
+    )
     model.to(rank)
-
     if args.use_ddp:
         model = DDP(model, device_ids=[rank])
 
-    # setup Weights & Biases, print # data and model summary
+    # setup Weights & Biases, print # data and log parameter table
     if rank in [0, torch.device("cpu")]:
         wandb_logging = args.wandb__api_key is not None
         if wandb_logging:
             wandb.login(key=args.wandb__api_key)
             wandb.init(project="transformer")
 
+        # TODO: print # train, val and test tokens
         logging.info(
-            f"Pad token ID: {pad_token_id}\n# Train:val:test samples: "
+            f"Pad token ID: {pad_token_id}\n# Train:val:test sentences: "
             f"{len(train_loader.dataset)}:{len(val_loader.dataset)}"
             f":{len(test_loader.dataset)}\n"
         )
-        summary(model, (args.batch_size, seq_length, inp_size))
+        log_parameter_table(model)
     else:
         wandb_logging = False
 
@@ -180,8 +187,6 @@ def main(
     if rank in [0, torch.device("cpu")]:
         if wandb_logging:
             wandb.finish()
-
-        count_parameters(model)  # TODO: rename, misleadig name
 
         # load checkpoint with lowest validation loss for final evaluation;
         # device does not need to be specified, since the checkpoint will be

@@ -39,7 +39,7 @@ def get_len_tokenized_data(
 
     token_lengths = []
 
-    for split in ["train", "validation", "test"]:
+    for split in ["train", "validation", "test"]:  # TODO: try `data.keys()`
         for dict in data[split]["translation"]:
             token_lengths.append(len(tokenizer.encode(dict["de"]).ids))
             token_lengths.append(len(tokenizer.encode(dict["en"]).ids))

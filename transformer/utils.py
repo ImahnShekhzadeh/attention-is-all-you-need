@@ -743,7 +743,7 @@ def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     logging.info("\n=> Saving checkpoint")
 
 
-def count_parameters(model: nn.Module) -> None:
+def log_parameter_table(model: nn.Module) -> None:
     """Log the number of parameters per module.
 
     Args:
@@ -757,7 +757,7 @@ def count_parameters(model: nn.Module) -> None:
         param = parameter.numel()
         table.add_row([name, param])
         total_params += param
-    logging.info(table)
+    logging.info(f"{table}\nTotal trainable params: {total_params}")
 
 
 def check_accuracy(loader, model, mode, device):

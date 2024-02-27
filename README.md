@@ -28,10 +28,5 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 ## TODO
 [ ] add `check_args` function
 [ ] add github action workflows
-```
-mask = torch.ones(
-    seq_length, seq_length
-).tril()
-```
-which will get broadcasted in the classes `EncoderBlock` and `DecoderBlock`.
+[ ] remove flag `learning_rate` and instead add flag `warmup_steps`
 [ ] is the way of retrieving the attention maps in the `Encoder` class correct?

@@ -31,6 +31,7 @@ class Encoder(nn.Module):
 
         [1] http://arxiv.org/abs/1706.03762
         """
+        super().__init__()
         self.num_layers = num_layers
         self.encoder_block = EncoderBlock(
             embed_dim=embed_dim,
@@ -108,6 +109,7 @@ class Decoder(nn.Module):
         Args:
             --- cf. `Encoder` ---
         """
+        super().__init__()
         self.num_layers = num_layers
         self.decoder_block = DecoderBlock(
             embed_dim=embed_dim,
@@ -169,7 +171,8 @@ class Transformer(nn.Module):
             num_heads: Number of heads for the multi-head attention.
             vocab_size: Vocabulary size of the tokenizer.
             seq_length: Maximum expected sequence length.
-            dim_feedfwd: Hidden dimension when applying two-layer MLP.
+            dim_feedfwd: Hidden dimension when applying two-layer MLP in
+                encoder and decoder blocks.
             dropout_rate: Dropout rate.
             use_bias: Whether a bias term is used when performing the
                 self-attention calculation. Default is `False`.
@@ -213,6 +216,7 @@ class Transformer(nn.Module):
         )
         # weight sharing with the shared embedding
         self.pre_softmax_linear.weight = self.embedding.weight
+        self.dropout = nn.Dropout(p=dropout_rate)
 
     def forward(
         self,
@@ -239,6 +243,7 @@ class Transformer(nn.Module):
             dict_input["source"]
         )
         encoder_input = self.pos_encod(encoder_input)
+        encoder_input = self.dropout(encoder_input)
 
         # for the decoder, shift the output tokens to the right
         # (Sec. 3.4 of [1]), then embed and encode,
@@ -251,6 +256,7 @@ class Transformer(nn.Module):
             shifted__decoder_input
         )
         shifted__decoder_input = self.pos_encod(shifted__decoder_input)
+        shifted__decoder_input = self.dropout(shifted__decoder_input)
 
         # implement mask for the first self-attention mechanism of shape
         # `(seq_length, seq_length)`, also cf.
