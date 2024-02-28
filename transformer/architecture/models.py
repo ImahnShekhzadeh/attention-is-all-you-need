@@ -33,12 +33,17 @@ class Encoder(nn.Module):
         """
         super().__init__()
         self.num_layers = num_layers
-        self.encoder_block = EncoderBlock(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dim_feedfwd=dim_feedfwd,
-            dropout=dropout,
-            use_bias=use_bias,
+        self.encoder_blocks = nn.ModuleList(
+            [
+                EncoderBlock(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    dim_feedfwd=dim_feedfwd,
+                    dropout=dropout,
+                    use_bias=use_bias,
+                )
+                for _ in range(num_layers)
+            ]
         )
 
     def forward(
@@ -54,8 +59,8 @@ class Encoder(nn.Module):
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
         """
-        for _ in range(self.num_layers):
-            x = self.encoder_block(
+        for idx in range(self.num_layers):
+            x = self.encoder_blocks[idx](
                 x=x,
                 mask=mask,
             )
@@ -78,13 +83,13 @@ class Encoder(nn.Module):
         """
         attn_maps = []
 
-        for _ in range(self.num_layers):
-            _, attn_weights = self.encoder_block.multihead_attn(
+        for idx in range(self.num_layers):
+            _, attn_weights = self.encoder_blocks[idx].multihead_attn(
                 x=x,
                 mask=mask,
                 return_attention=True,
             )
-            x = self.encoder_block(
+            x = self.encoder_blocks[idx](
                 x=x,
                 mask=mask,
             )
@@ -111,12 +116,17 @@ class Decoder(nn.Module):
         """
         super().__init__()
         self.num_layers = num_layers
-        self.decoder_block = DecoderBlock(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dim_feedfwd=dim_feedfwd,
-            dropout=dropout,
-            use_bias=use_bias,
+        self.decoder_block = nn.ModuleList(
+            [
+                DecoderBlock(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    dim_feedfwd=dim_feedfwd,
+                    dropout=dropout,
+                    use_bias=use_bias,
+                )
+                for _ in range(num_layers)
+            ]
         )
 
     def forward(
@@ -138,8 +148,8 @@ class Decoder(nn.Module):
 
         [1] http://arxiv.org/abs/1706.03762
         """
-        for _ in range(self.num_layers):
-            x = self.decoder_block(
+        for idx in range(self.num_layers):
+            x = self.decoder_blocks[idx](
                 x=x,
                 encoder_output=encoder_output,
                 mask=mask,
@@ -272,7 +282,7 @@ class Transformer(nn.Module):
 
         # forward pass through encoder, decoder and linear layer
         x = self.encoder(encoder_input, mask=None)
-        x = self.decoder(shifted__decoder_input, mask=mask)
+        x = self.decoder(shifted__decoder_input, x, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
         return x

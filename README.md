@@ -29,4 +29,3 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 [ ] fix serious flaw in `Encoder` and `Decoder`: use of [`nn.ModuleList`](https://pytorch.org/docs/stable/generated/torch.nn.ModuleList.html) necessary
 [ ] add github action workflows
 [ ] remove flag `learning_rate` and instead add flag `warmup_steps`
-[ ] is the way of retrieving the attention maps in the `Encoder` class correct?
