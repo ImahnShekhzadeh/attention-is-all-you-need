@@ -245,7 +245,7 @@ class Transformer(nn.Module):
             pad_token_id: ID of the pad token.
 
         Returns:
-            Output tensor of shape `(N, num_classes)`
+            Output tensor of shape `(N, seq_length, vocab_size)`.
         """
 
         # embedding and positional encoding for the encoder,
