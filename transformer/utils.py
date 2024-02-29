@@ -16,7 +16,6 @@ import datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import wandb
 from datasets import load_dataset
 from prettytable import PrettyTable
 from tokenizers import Tokenizer
@@ -30,6 +29,8 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
+
+import wandb
 
 
 def total_norm__grads(model: nn.Module) -> float:
@@ -373,6 +374,7 @@ def get_dataloaders(
 
 
 def train_and_validate(
+    pad_token_id: int,
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     num_epochs: int,
@@ -390,6 +392,7 @@ def train_and_validate(
     Train and validate the model.
 
     Args:
+        pad_token_id: ID of the pad token.
         model: Model to train.
         optimizer: Optimizer to use.
         num_epochs: Number of epochs to train the model.
@@ -423,18 +426,19 @@ def train_and_validate(
         trainingLoss_perEpoch, valLoss_perEpoch = [], []
         num_correct, num_samples, val_num_correct, val_num_samples = 0, 0, 0, 0
 
-        for batch_idx, (images, labels) in enumerate(train_loader):
+        for batch_idx, dict in enumerate(train_loader):
             model.train()
-            labels = labels.to(rank)
+            train_tokens = dict["source"].to(rank)
+            train_labels = dict["target"].to(rank)
             optimizer.zero_grad()
 
             with autocast(
-                device_type=labels.device.type,
+                device_type=train_tokens.device.type,
                 dtype=torch.float16,
                 enabled=use_amp,
             ):
-                output = model(images.squeeze_(dim=1).to(rank))  # `(N, 10)`
-                loss = cce_mean(output, labels)
+                output = model(train_tokens, train_labels, pad_token_id)
+                loss = cce_mean(output, train_labels)
 
             scaler.scale(loss).backward()
             if max_norm is not None:
@@ -444,14 +448,16 @@ def train_and_validate(
             scaler.step(optimizer)
             scaler.update()
 
-            trainingLoss_perEpoch.append(cce_sum(output, labels).cpu().item())
+            trainingLoss_perEpoch.append(
+                cce_sum(output, train_labels).cpu().item()
+            )
 
             # calculate accuracy
             with torch.no_grad():
                 model.eval()
                 batch_size = output.shape[0]
                 output_maxima, max_indices = output.max(dim=1, keepdim=False)
-                num_correct += (max_indices == labels).sum().cpu().item()
+                num_correct += (max_indices == train_labels).sum().cpu().item()
                 num_samples += batch_size
 
             if rank in [0, torch.device("cpu")]:

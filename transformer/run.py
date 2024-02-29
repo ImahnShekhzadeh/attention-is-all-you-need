@@ -8,7 +8,6 @@ from argparse import Namespace
 from datetime import datetime as dt
 
 import torch
-import wandb
 from dataset import DictDataset
 from torch import multiprocessing as mp
 from torch import optim
@@ -28,6 +27,7 @@ from utils import (
     train_and_validate,
 )
 
+import wandb
 from architecture.models import Transformer
 from options import get_parser
 
@@ -156,6 +156,7 @@ def main(
 
     # Train the network:
     checkpoint = train_and_validate(
+        pad_token_id=pad_token_id,
         model=model,
         optimizer=optimizer,
         num_epochs=args.num_epochs,

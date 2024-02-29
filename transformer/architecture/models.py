@@ -230,17 +230,18 @@ class Transformer(nn.Module):
 
     def forward(
         self,
-        dict_input: Dict[str, Tensor],
+        input_tokens: torch.Tensor,
+        output_tokens: torch.Tensor,
         pad_token_id: int,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
 
         Args:
-            dict_input: Dictionary with the keys "source" and "target",
-                each containing a tensor (the tokens) of shape
-                `(N, seq_length)`. The "source" tensor is the input to the
-                encoder and the "target" tensor is the input to the decoder.
+            input_tokens: Input tokens to encoder ("source" language) in shape
+                `(N, seq_length)`
+            output_tokens: Input tokens to decoder ("target" language) in shape
+                `(N, seq_length)`
             pad_token_id: ID of the pad token.
 
         Returns:
@@ -250,7 +251,7 @@ class Transformer(nn.Module):
         # embedding and positional encoding for the encoder,
         # `(N, seq_length, embed_dim)`
         encoder_input = math.sqrt(self.embed_dim) * self.embedding(
-            dict_input["source"]
+            input_tokens
         )
         encoder_input = self.pos_encod(encoder_input)
         encoder_input = self.dropout(encoder_input)
@@ -258,9 +259,7 @@ class Transformer(nn.Module):
         # for the decoder, shift the output tokens to the right
         # (Sec. 3.4 of [1]), then embed and encode,
         # `(N, seq_length, embed_dim)`
-        shifted__decoder_input = dict_input["target"].roll(
-            shifts=(0, 1), dims=(0, 1)
-        )
+        shifted__decoder_input = output_tokens.roll(shifts=(0, 1), dims=(0, 1))
         shifted__decoder_input[:, 0] = pad_token_id
         shifted__decoder_input = math.sqrt(self.embed_dim) * self.embedding(
             shifted__decoder_input
