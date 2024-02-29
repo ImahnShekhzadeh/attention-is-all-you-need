@@ -310,7 +310,7 @@ class DecoderMultiHeadAttention(nn.Module):
         values, attn_weights = scaled_dot_product_attn(q_proj, k_proj, v)
         # permute and reshape
         # `(N, seq_length, self.embed_dim)`
-        values = values.permute(dims=(0, 2, 1, 3)).reshape(
+        values = (values := values.permute(0, 2, 1, 3)).reshape(
             values.shape[0], values.shape[1], self.embed_dim
         )
         o = self.o_proj(values)  # `(N, seq_length, self.embed_dim)`
