@@ -18,6 +18,13 @@ As of 08 February 2024, the stable version of `torchtext` is `0.17.0`, which doe
 
 In the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper, the model is reported to have about `65`M parameters, the implemented transformer in this repo - with the options provided in `configs/conf.json` - has about `63`M params.
 
+### W&B
+If you want to log some metrics to [Weights & Biases](https://wandb.ai/), append the following to the `docker run` command:
+```
+--wandb__api_key <api_key>
+# --wandb__api_key 2fru...
+```
+
 ## Sequence Length
 To justify the chosen sequence length, I wrote a script that - for a given pre-trained tokenizer - plots the frequency of tokens vs their number.
 Run the script as follows,

@@ -20,3 +20,6 @@ transformers.egg-info
 
 # output dir
 outputs/
+
+# W&B
+wandb/
