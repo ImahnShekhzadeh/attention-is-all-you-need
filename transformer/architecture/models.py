@@ -116,7 +116,7 @@ class Decoder(nn.Module):
         """
         super().__init__()
         self.num_layers = num_layers
-        self.decoder_block = nn.ModuleList(
+        self.decoder_blocks = nn.ModuleList(
             [
                 DecoderBlock(
                     embed_dim=embed_dim,
