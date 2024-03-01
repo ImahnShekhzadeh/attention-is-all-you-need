@@ -476,11 +476,10 @@ def train_and_validate(
                 num_samples += batch_size
 
             if rank in [0, torch.device("cpu")]:
-                print__batch_info(
+                log__batch_info(
                     batch_idx=batch_idx,
                     loader=train_loader,
                     epoch=epoch,
-                    t_0=t0,
                     loss=loss,
                     mode="train",
                     frequency=freq_output__train,
@@ -490,27 +489,33 @@ def train_and_validate(
         with torch.no_grad():
             model.eval()
 
-            for val_batch_idx, (val_images, val_labels) in enumerate(
-                val_loader
-            ):
-                val_labels = val_labels.to(rank)
+            for val_batch_idx, val_dict in enumerate(val_loader):
+                val_tokens = val_dict["source"].to(rank)
+                val_labels = val_dict["target"].to(rank)
 
                 with autocast(
                     device_type=val_labels.device.type,
                     dtype=torch.float16,
                     enabled=use_amp,
                 ):
-                    val_output = model(
-                        val_images.squeeze_(dim=1).to(rank)
-                    )  # `[N, C]`
-                    val_loss = cce_sum(val_output, val_labels).cpu().item()
+                    val_output = model(val_tokens, val_labels, pad_token_id)
+                    val_loss = (
+                        cce_sum(
+                            # `[N * seq_length, vocab_size]`
+                            val_output.reshape(-1, val_output.shape[-1]),
+                            # `[N * seq_length]`
+                            val_labels.reshape(-1),
+                        )
+                        .cpu()
+                        .item()
+                    )
 
                 valLoss_perEpoch.append(val_loss)
 
                 # calculate accuracy
                 # TODO: write a `calculate_accuracy()` function
                 val_output_maxima, val_max_indices = val_output.max(
-                    dim=1, keepdim=False
+                    dim=2, keepdim=False
                 )
                 val_num_correct += (
                     (val_max_indices == val_labels).cpu().sum().item()
@@ -519,12 +524,11 @@ def train_and_validate(
                 val_num_samples += batch_size
 
                 if rank in [0, torch.device("cpu")]:
-                    print__batch_info(
+                    log__batch_info(
                         batch_idx=val_batch_idx,
                         loader=val_loader,
                         epoch=epoch,
-                        t_0=t0,
-                        loss=cce_mean(val_output, val_labels).cpu().item(),
+                        loss=val_loss / batch_size,
                         mode="val",
                         frequency=freq_output__val,
                     )
@@ -690,12 +694,11 @@ def format_line(
     return f"{epoch_str}  {sample_info_str}  {loss_str}"
 
 
-def print__batch_info(
+def log__batch_info(
     mode: str,
     batch_idx: int,
     loader: DataLoader,
     epoch: int,
-    t_0: float,
     loss: Tensor,
     frequency: int = 1,
 ) -> None:
@@ -707,7 +710,6 @@ def print__batch_info(
         batch_idx: Batch index.
         loader: Train or validation Dataloader.
         epoch: Current epoch.
-        t_0: Time at which the training started.
         loss: Loss of the current batch.
         frequency: Frequency at which to print the batch info.
     """

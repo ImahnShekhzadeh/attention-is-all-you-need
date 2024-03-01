@@ -35,6 +35,8 @@ python3 -B plot__seq_length.py --tokenizer_file ...
 You can either use my pre-trained tokenizer, or provide your own. For the used dataset and the BPE tokenizer `transformer/bpe_tokenizer_37k.json` with a vocabulary size of `37`k, you can iew the plot [here](visualiz/seq_lengths_37k.pdf). For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
+[ ] fix nan loss values
+[ ] fix acc calculation
+[ ] add function to compute BLEU score
 [ ] add label smoothing
 [ ] add github action workflows
-[ ] remove flag `learning_rate` and instead add flag `warmup_steps`
