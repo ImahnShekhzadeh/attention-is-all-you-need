@@ -9,6 +9,7 @@ from datetime import datetime as dt
 
 import torch
 from dataset import DictDataset
+from scheduler import LRScheduler
 from torch import multiprocessing as mp
 from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -132,7 +133,7 @@ def main(
     # Optimizer:
     optimizer = optim.Adam(
         params=model.parameters(),
-        lr=args.learning_rate,
+        lr=1e-3,
         betas=(0.9, 0.999),
         eps=1e-08,
     )
@@ -155,6 +156,11 @@ def main(
         )
 
     # Train the network:
+    lr_scheduler = LRScheduler(
+        optimizer=optimizer,
+        d_model=args.embedding_dim,
+        warmup_steps=args.warmup_steps,
+    )
     checkpoint = train_and_validate(
         pad_token_id=pad_token_id,
         model=model,
@@ -164,6 +170,7 @@ def main(
         use_amp=args.use_amp,
         train_loader=train_loader,
         val_loader=val_loader,
+        lr_scheduler=lr_scheduler,
         freq_output__train=args.freq_output__train,
         freq_output__val=args.freq_output__val,
         max_norm=args.max_norm,

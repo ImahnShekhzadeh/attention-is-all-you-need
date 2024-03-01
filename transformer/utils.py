@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from datasets import load_dataset
 from prettytable import PrettyTable
+from scheduler import LRScheduler
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import Whitespace
@@ -382,6 +383,7 @@ def train_and_validate(
     use_amp: bool,
     train_loader: DataLoader,
     val_loader: DataLoader,
+    lr_scheduler: Optional[LRScheduler] = None,
     freq_output__train: Optional[int] = 10,
     freq_output__val: Optional[int] = 10,
     max_norm: Optional[float] = None,
@@ -400,6 +402,7 @@ def train_and_validate(
         use_amp: Whether to use automatic mixed precision.
         train_loader: Dataloader for the training set.
         val_loader: Dataloader for the validation set.
+        lr_scheduler: Learning rate scheduler.
         freq_output__train: Frequency at which to print the training info.
         freq_output__val: Frequency at which to print the validation info.
         max_norm: Maximum norm of the gradients.
@@ -431,6 +434,8 @@ def train_and_validate(
             train_tokens = dict["source"].to(rank)
             train_labels = dict["target"].to(rank)
             optimizer.zero_grad()
+            if lr_scheduler is not None:
+                lr_scheduler.step()
 
             with autocast(
                 device_type=train_tokens.device.type,

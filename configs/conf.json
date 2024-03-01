@@ -4,7 +4,6 @@
     "embedding_dim": 512,
     "freq_output__train": 1,
     "freq_output__val": 1,
-    "learning_rate": 2e-3,
     "min_frequency": 0,
     "num_epochs": 30,
     "num_heads": 8,
@@ -13,6 +12,7 @@
     "pin_memory": true,
     "seq_length": 128,
     "use_amp": true,
+    "warmup_steps": 4000,
     "saving_path": "outputs/3",
     "tokenizer_file": "transformer/bpe_tokenizer_37k.json"
 }

@@ -67,10 +67,10 @@ def get_parser() -> argparse.ArgumentParser:
         help="If specified, seed number is used for RNG.",
     )
     parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=1e-4,
-        help="Learning rate for the training of the NN.",
+        "--warmup_steps",
+        type=int,
+        default=4000,
+        help="Number of warmup steps for which the LR increases.",
     )
     parser.add_argument(
         "--num_epochs",
