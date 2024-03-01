@@ -438,7 +438,12 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 output = model(train_tokens, train_labels, pad_token_id)
-                loss = cce_mean(output, train_labels)
+                loss = cce_mean(
+                    # `[N * seq_length, vocab_size]`
+                    output.reshape(-1, output.shape[-1]),
+                    # `[N * seq_length]`
+                    train_labels.reshape(-1),
+                )
 
             scaler.scale(loss).backward()
             if max_norm is not None:
@@ -449,14 +454,19 @@ def train_and_validate(
             scaler.update()
 
             trainingLoss_perEpoch.append(
-                cce_sum(output, train_labels).cpu().item()
+                cce_sum(
+                    output.reshape(-1, output.shape[-1]),
+                    train_labels.reshape(-1),
+                )
+                .cpu()
+                .item()
             )
 
             # calculate accuracy
             with torch.no_grad():
                 model.eval()
                 batch_size = output.shape[0]
-                output_maxima, max_indices = output.max(dim=1, keepdim=False)
+                output_maxima, max_indices = output.max(dim=2, keepdim=False)
                 num_correct += (max_indices == train_labels).sum().cpu().item()
                 num_samples += batch_size
 
