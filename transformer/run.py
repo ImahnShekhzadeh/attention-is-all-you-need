@@ -159,6 +159,7 @@ def main(
         optimizer=optimizer,
         d_model=args.embedding_dim,
         warmup_steps=args.warmup_steps,
+        lr_multiplier=args.lr_multiplier,
     )
     checkpoint = train_and_validate(
         pad_token_id=pad_token_id,

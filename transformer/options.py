@@ -38,6 +38,15 @@ def get_parser() -> argparse.ArgumentParser:
         help="Frequency of outputting the validation loss and accuracy.",
     )
     parser.add_argument(
+        "--lr_multiplier",
+        type=float,
+        default=1,
+        help=(
+            "By which factor to multiply the learning rates of the scheduler "
+            "used in the 'Attention is All You Need Paper'."
+        ),
+    )
+    parser.add_argument(
         "--max_norm",
         type=float,
         default=None,

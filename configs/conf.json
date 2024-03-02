@@ -4,6 +4,7 @@
     "embedding_dim": 512,
     "freq_output__train": 1,
     "freq_output__val": 1,
+    "lr_multiplier": 0.1,
     "min_frequency": 0,
     "num_epochs": 30,
     "num_heads": 8,
