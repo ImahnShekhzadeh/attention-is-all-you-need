@@ -21,7 +21,6 @@ from utils import (
     get_datasets_and_tokenizer,
     load_checkpoint,
     log_parameter_table,
-    produce_and_print_confusion_matrix,
     retrieve_args,
     save_checkpoint,
     setup,
@@ -205,13 +204,6 @@ def main(
         # check accuracy on train and test set and produce confusion matrix
         check_accuracy(train_loader, model, mode="train", device=rank)
         check_accuracy(test_loader, model, mode="test", device=rank)
-        produce_and_print_confusion_matrix(
-            num_classes,
-            test_loader,
-            model,
-            args.saving_path,
-            rank,
-        )
 
 
 if __name__ == "__main__":
