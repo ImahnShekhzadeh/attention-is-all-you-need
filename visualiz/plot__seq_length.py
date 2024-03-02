@@ -40,7 +40,7 @@ def main(args: argparse.Namespace) -> None:
     plt.xlabel("Sequence length (# tokens)")
     plt.ylabel("Frequency (# occurrence)")
     plt.savefig(
-        f"seq_lengths_{vocab_size // 1000}k.pdf",
+        f"seq_lengths_{vocab_size // 1000}k.png",
         bbox_inches="tight",
         pad_inches=0.01,
         dpi=600,
