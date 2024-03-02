@@ -414,9 +414,8 @@ def train_and_validate(
         checkpoint: Checkpoint of the model.
     """
 
-    # define loss functions:
+    # loss function:
     cce_mean = nn.CrossEntropyLoss(reduction="mean")
-    cce_sum = nn.CrossEntropyLoss(reduction="sum")
 
     start_time = start_timer(device=rank)
     train_losses, val_losses, train_accs, val_accs = [], [], [], []
@@ -459,12 +458,7 @@ def train_and_validate(
             scaler.update()
 
             trainingLoss_perEpoch.append(
-                cce_sum(
-                    output.reshape(-1, output.shape[-1]),
-                    train_labels.reshape(-1),
-                )
-                .cpu()
-                .item()
+                loss.cpu().item() * train_tokens.shape[0]
             )
 
             # calculate accuracy
@@ -500,7 +494,7 @@ def train_and_validate(
                 ):
                     val_output = model(val_tokens, val_labels, pad_token_id)
                     val_loss = (
-                        cce_sum(
+                        cce_mean(
                             # `[N * seq_length, vocab_size]`
                             val_output.reshape(-1, val_output.shape[-1]),
                             # `[N * seq_length]`
@@ -508,6 +502,7 @@ def train_and_validate(
                         )
                         .cpu()
                         .item()
+                        * val_tokens.shape[0]
                     )
 
                 valLoss_perEpoch.append(val_loss)
