@@ -32,9 +32,9 @@ Run the script as follows,
 cd visualiz/
 python3 -B plot__seq_length.py --tokenizer_file ...
 ```
-You can either use my pre-trained tokenizer, or provide your own. For the used dataset and the BPE tokenizer `transformer/bpe_tokenizer_37k.json` with a vocabulary size of `37`k, here is the plot: 
+You can either use my pre-trained tokenizer, or provide your own. For the used dataset and the BPE tokenizer `transformer/bpe_tokenizer_37k.json` with a vocabulary size of `37`k, here is the plot:
 
-<div style="display: flex; justify-content: center;"> 
+<div style="display: flex; justify-content: center;">
     <img src="visualiz/seq_lengths_37k.png" alt="Description" width="600"/>
 </div>
 <br>
@@ -42,8 +42,7 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
-[ ] fix acc calculation
-[ ] add function to compute BLEU score
+[ ] add function to compute BLEU score after training
 [ ] add label smoothing
 [ ] add flag to specify # checkpoints
 [ ] add github action workflows

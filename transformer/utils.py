@@ -430,8 +430,8 @@ def train_and_validate(
 
         for batch_idx, dict in enumerate(train_loader):
             model.train()
-            train_tokens = dict["source"].to(rank)
-            train_labels = dict["target"].to(rank)
+            train_tokens = dict["source"].to(rank)  # `[N, seq_length]`
+            train_labels = dict["target"].to(rank)  # `[N, seq_length]`
             optimizer.zero_grad()
             if lr_scheduler is not None:
                 lr_scheduler.step()
@@ -441,6 +441,7 @@ def train_and_validate(
                 dtype=torch.float16,
                 enabled=use_amp,
             ):
+                # `[N, seq_length, vocab_size]`
                 output = model(train_tokens, train_labels, pad_token_id)
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
@@ -464,10 +465,9 @@ def train_and_validate(
             # calculate accuracy
             with torch.no_grad():
                 model.eval()
-                batch_size = output.shape[0]
-                output_maxima, max_indices = output.max(dim=2, keepdim=False)
+                _, max_indices = output.max(dim=2, keepdim=False)
                 num_correct += (max_indices == train_labels).sum().cpu().item()
-                num_samples += batch_size
+                num_samples += output.shape[0] * output.shape[1]
 
             if rank in [0, torch.device("cpu")]:
                 log__batch_info(
@@ -479,10 +479,8 @@ def train_and_validate(
                     frequency=freq_output__train,
                 )
 
-        # validation stuff:
+        # validation stuff (`model` already in eval mode):
         with torch.no_grad():
-            model.eval()
-
             for val_batch_idx, val_dict in enumerate(val_loader):
                 val_tokens = val_dict["source"].to(rank)
                 val_labels = val_dict["target"].to(rank)
@@ -509,14 +507,12 @@ def train_and_validate(
 
                 # calculate accuracy
                 # TODO: write a `calculate_accuracy()` function
-                val_output_maxima, val_max_indices = val_output.max(
-                    dim=2, keepdim=False
-                )
+                _, val_max_indices = val_output.max(dim=2, keepdim=False)
                 val_num_correct += (
                     (val_max_indices == val_labels).cpu().sum().item()
                 )
                 batch_size = val_output.shape[0]
-                val_num_samples += batch_size
+                val_num_samples += batch_size * val_output.shape[1]
 
                 if rank in [0, torch.device("cpu")]:
                     log__batch_info(
