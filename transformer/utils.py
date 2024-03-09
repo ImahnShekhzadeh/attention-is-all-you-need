@@ -438,7 +438,7 @@ def train_and_validate(
                 (
                     start_token_id
                     * torch.ones(
-                        (src_tokens.shape[0], 1), dtype=torch.float32
+                        (src_tokens.shape[0], 1), dtype=src_tokens.dtype
                     ),
                     dict["target"],
                 ),
@@ -504,7 +504,7 @@ def train_and_validate(
                     (
                         start_token_id
                         * torch.ones(
-                            (src_tokens.shape[0], 1), dtype=torch.float32
+                            (src_tokens.shape[0], 1), dtype=src_tokens.dtype
                         ),
                         val_dict["target"],
                     ),
