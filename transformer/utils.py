@@ -16,7 +16,6 @@ import datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from datasets import load_dataset
 from prettytable import PrettyTable
 from scheduler import LRScheduler
 from tokenizers import Tokenizer
@@ -30,6 +29,7 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
+from torchtext.data.metrics import bleu_score
 
 import wandb
 
@@ -239,6 +239,7 @@ def get_bpe_tokenizer(
 
 
 def get_datasets_and_tokenizer(
+    data: datasets.dataset_dict.DatasetDict,
     seq_length: int,
     tokenizer_file: str = "bpe_tokenizer_30k.json",
     vocab_size: Optional[int] = None,
@@ -248,6 +249,7 @@ def get_datasets_and_tokenizer(
     Get the train, val and test datasets of the IWSLT 2017 DE-EN dataset.
 
     Args:
+        data: Datasets (train, val, test).
         seq_length: Sequence length; if sentence contains less tokens than
             `seq_length`, it will be padded, otherwise truncated.
         tokenizer_file: Path to the tokenizer file.
@@ -260,9 +262,6 @@ def get_datasets_and_tokenizer(
             split for both German and English and the tokenizer used for the
             encoding.
     """
-
-    # type: `datasets.dataset_dict.DatasetDict`
-    data = load_dataset("iwslt2017", "iwslt2017-de-en")
 
     # load tokenizer from file path or train from scratch
     tokenizer_args = {
@@ -774,7 +773,7 @@ def log_parameter_table(model: nn.Module) -> None:
     logging.info(f"{table}\nTotal trainable params: {total_params}")
 
 
-def check_accuracy(loader, model, mode, device):
+def check_accuracy(loader, model, mode, device, pad_token_id):
     """
     Check the accuracy of a given model on a given dataset.
 
@@ -787,6 +786,7 @@ def check_accuracy(loader, model, mode, device):
             is in. Either "train" or "test".
         device (torch.device)                       -- Device on which the code
             was executed.
+        pad_token_id: ID of the pad token.
     """
     assert mode in ["train", "test"]
 
@@ -795,21 +795,43 @@ def check_accuracy(loader, model, mode, device):
     num_samples = 0
 
     with torch.no_grad():
-        for images, labels in loader:
-            images = images.to(device=device)
-            images = torch.squeeze(
-                input=images, dim=1
-            )  # shape: ``(batch_size, 28, 28)``, otherwise RNN throws error
-            labels = labels.to(device=device)
-
-            forward_pass = model(images)  # shape: ``(batch_size, 10)``
-            _, predictions = forward_pass.max(
-                dim=1
-            )  # from our model, we get the shape ``(batch_size, 10)`` returned
-            num_correct += (predictions == labels).sum()
-            num_samples += predictions.size(0)
+        for dict in loader:
+            tokens = dict["source"].to(device)  # `[N, seq_length]`
+            labels = dict["target"].to(device)  # `[N, seq_length]`
+            output = model(tokens, labels, pad_token_id)
+            _, max_indices = output.max(dim=2, keepdim=False)
+            num_correct += (max_indices == labels).sum().cpu().item()
+            num_samples += output.shape[0] * output.shape[1]
 
         logging.info(
             f"{mode.capitalize()} data: Got {num_correct}/{num_samples} with "
             f"accuracy {(100 * num_correct / num_samples):.2f} %"
         )
+
+
+def compute__bleu_score(
+    test_data: List[Dict],
+    max__n_gram: int,
+    generated__token_ids: torch.Tensor,
+    tokenizer: Tokenizer,
+) -> float:
+    """
+    Compute the BLEU score of the model.
+
+    Args:
+        test_data: List containing test data (strings) for both the source and
+            target languages.
+        max__n_gram: Maximum n-gram used when calculating BLEU score.
+        generated__token_ids: Generated data containing token IDs.
+        tokenizer: Tokenizer.
+
+    Returns:
+        BLEU score (between 0 and 1).
+    """
+    reference_data = []
+    for dict in test_data:
+        reference_data.append(dict["en"])
+
+    generated_data = tokenizer.decode_batch(generated__token_ids.tolist())
+
+    return bleu_score(generated_data, test_data, max__n_gram)

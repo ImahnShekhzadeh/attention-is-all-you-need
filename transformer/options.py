@@ -142,6 +142,12 @@ def get_parser() -> argparse.ArgumentParser:
         help="Embedding dimensionality (`d_model`).",
     )
     parser.add_argument(
+        "--max__n-gram",
+        type=int,
+        default=5,
+        help="Maximum n-gram when computing the BLEU score.",
+    )
+    parser.add_argument(
         "--min_frequency",
         type=int,
         default=0,

@@ -9,6 +9,7 @@ from datetime import datetime as dt
 
 import torch
 from dataset import DictDataset
+from datasets import load_dataset
 from scheduler import LRScheduler
 from torch import multiprocessing as mp
 from torch import optim
@@ -17,6 +18,7 @@ from torchinfo import summary
 from utils import (
     check_accuracy,
     cleanup,
+    compute__bleu_score,
     get_dataloaders,
     get_datasets_and_tokenizer,
     load_checkpoint,
@@ -55,6 +57,9 @@ def main(
             world_size=world_size,
         )
 
+    # type: `datasets.dataset_dict.DatasetDict`
+    data = load_dataset("iwslt2017", "iwslt2017-de-en")
+
     # get ids stored in dict (both for the source and target) for train, val
     # and test datasets, as well as the tokenizer
     (
@@ -63,6 +68,7 @@ def main(
         test__dict_ids,
         tokenizer,
     ) = get_datasets_and_tokenizer(
+        data=data,
         seq_length=args.seq_length,
         tokenizer_file=args.tokenizer_file,
         vocab_size=args.vocab_size,
@@ -202,9 +208,28 @@ def main(
         # was saved
         load_checkpoint(model=model, checkpoint=checkpoint)
 
-        # check accuracy on train and test set and produce confusion matrix
-        check_accuracy(train_loader, model, mode="train", device=rank)
-        check_accuracy(test_loader, model, mode="test", device=rank)
+        # check accuracy on train and test set, compute BLEU score
+        check_accuracy(
+            train_loader,
+            model,
+            mode="train",
+            device=rank,
+            pad_token_id=pad_token_id,
+        )
+        check_accuracy(
+            test_loader,
+            model,
+            mode="test",
+            device=rank,
+            pad_token_id=pad_token_id,
+        )
+        bleu_score = compute__bleu_score(
+            test_data=data["test"]["translation"],
+            max__n_gram=args.max__n_gram,
+            tokenizer=tokenizer,
+            device=rank,
+        )
+        logging.info(f"BLEU score: {bleu_score}")
 
 
 if __name__ == "__main__":
