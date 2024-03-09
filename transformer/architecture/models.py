@@ -232,7 +232,6 @@ class Transformer(nn.Module):
         self,
         input_tokens: torch.Tensor,
         output_tokens: torch.Tensor,
-        pad_token_id: int,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
@@ -242,7 +241,6 @@ class Transformer(nn.Module):
                 `(N, seq_length)`
             output_tokens: Input tokens to decoder ("target" language) in shape
                 `(N, seq_length)`
-            pad_token_id: ID of the pad token.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
@@ -256,17 +254,13 @@ class Transformer(nn.Module):
         encoder_input = self.pos_encod(encoder_input)
         encoder_input = self.dropout(encoder_input)
 
-        # for the decoder, shift the output tokens to the right
-        # (Sec. 3.4 of [1]), then embed and encode,
+        # embedding and positional encoding for the decoder,
         # `(N, seq_length, embed_dim)`
-        shifted__decoder_input = output_tokens.roll(shifts=(0, 1), dims=(0, 1))
-        shifted__decoder_input[:, 0] = pad_token_id
-        # TODO: fix, should be start_token_id
-        shifted__decoder_input = math.sqrt(self.embed_dim) * self.embedding(
-            shifted__decoder_input
+        decoder_input = math.sqrt(self.embed_dim) * self.embedding(
+            output_tokens
         )
-        shifted__decoder_input = self.pos_encod(shifted__decoder_input)
-        shifted__decoder_input = self.dropout(shifted__decoder_input)
+        decoder_input = self.pos_encod(decoder_input)
+        decoder_input = self.dropout(decoder_input)
 
         # implement mask for the first self-attention mechanism of shape
         # `(seq_length, seq_length)`, also cf.
@@ -282,7 +276,7 @@ class Transformer(nn.Module):
 
         # forward pass through encoder, decoder and linear layer
         x = self.encoder(encoder_input, mask=None)
-        x = self.decoder(shifted__decoder_input, x, mask=mask)
+        x = self.decoder(decoder_input, x, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
         return x

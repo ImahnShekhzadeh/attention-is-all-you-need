@@ -93,11 +93,13 @@ def main(
         use_ddp=args.use_ddp,
     )
 
-    # get pad token ID
+    # get start and pad token IDs
+    start_token_id = tokenizer.token_to_id("[SOS]")
     pad_token_id = tokenizer.token_to_id("[PAD]")
-    assert (
-        pad_token_id is not None
-    ), "Pad token ID not found. Please use another tokenizer."
+    assert pad_token_id is not None and start_token_id is not None, (
+        "Start or pad token ID not found. Please use another tokenizer or "
+        "train tokenizer first."
+    )
 
     # define transformer
     model = Transformer(
@@ -120,7 +122,6 @@ def main(
             wandb.login(key=args.wandb__api_key)
             wandb.init(project="transformer")
 
-        # TODO: print # train, val and test tokens
         logging.info(
             f"Pad token ID: {pad_token_id}\n# Train:val:test sentences: "
             f"{len(train_loader.dataset)}:{len(val_loader.dataset)}"
@@ -169,6 +170,7 @@ def main(
     )
     checkpoint = train_and_validate(
         pad_token_id=pad_token_id,
+        start_token_id=start_token_id,
         model=model,
         optimizer=optimizer,
         num_epochs=args.num_epochs,

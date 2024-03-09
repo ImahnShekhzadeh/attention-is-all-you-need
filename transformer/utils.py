@@ -374,6 +374,7 @@ def get_dataloaders(
 
 def train_and_validate(
     pad_token_id: int,
+    start_token_id: int,
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     num_epochs: int,
@@ -392,7 +393,8 @@ def train_and_validate(
     Train and validate the model.
 
     Args:
-        pad_token_id: ID of the pad token.
+        pad_token_id: ID of the pad token `[PAD]`.
+        start_token_id: ID of the start token `[SOS]`.
         model: Model to train.
         optimizer: Optimizer to use.
         num_epochs: Number of epochs to train the model.
@@ -440,7 +442,7 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 # `[N, seq_length, vocab_size]`
-                output = model(train_tokens, train_labels, pad_token_id)
+                output = model(train_tokens, train_labels)
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
                     output.reshape(-1, output.shape[-1]),
@@ -488,7 +490,7 @@ def train_and_validate(
                     dtype=torch.float16,
                     enabled=use_amp,
                 ):
-                    val_output = model(val_tokens, val_labels, pad_token_id)
+                    val_output = model(val_tokens, val_labels)
                     val_loss = (
                         cce_mean(
                             # `[N * seq_length, vocab_size]`
