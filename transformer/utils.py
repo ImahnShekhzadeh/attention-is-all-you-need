@@ -430,24 +430,41 @@ def train_and_validate(
 
         for batch_idx, dict in enumerate(train_loader):
             model.train()
-            train_tokens = dict["source"].to(rank)  # `[N, seq_length]`
-            train_labels = dict["target"].to(rank)  # `[N, seq_length]`
+
+            # tokens in source language `[N, seq_length]`
+            src_tokens = dict["source"].to(rank)
+            # tokens in target language, `[N, seq_length + 1]`
+            target_tokens = torch.cat(
+                (
+                    start_token_id
+                    * torch.ones(
+                        (src_tokens.shape[0], 1), dtype=torch.float32
+                    ),
+                    dict["target"],
+                ),
+                dim=1,
+            ).to(rank)
+            decoder_tokens = target_tokens[
+                :, :-1
+            ]  # input to decoder, `[N, seq_length]`
+            labels = target_tokens[:, 1:]  # `[N, seq_length]`
+
             optimizer.zero_grad()
             if lr_scheduler is not None:
                 lr_scheduler.step()
 
             with autocast(
-                device_type=train_tokens.device.type,
+                device_type=src_tokens.device.type,
                 dtype=torch.float16,
                 enabled=use_amp,
             ):
                 # `[N, seq_length, vocab_size]`
-                output = model(train_tokens, train_labels)
+                output = model(src_tokens, decoder_tokens)
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
                     output.reshape(-1, output.shape[-1]),
                     # `[N * seq_length]`
-                    train_labels.reshape(-1),
+                    labels.reshape(-1),
                 )
 
             scaler.scale(loss).backward()
@@ -459,14 +476,14 @@ def train_and_validate(
             scaler.update()
 
             trainingLoss_perEpoch.append(
-                loss.cpu().item() * train_tokens.shape[0]
+                loss.cpu().item() * src_tokens.shape[0]
             )
 
             # calculate accuracy
             with torch.no_grad():
                 model.eval()
                 _, max_indices = output.max(dim=2, keepdim=False)
-                num_correct += (max_indices == train_labels).sum().cpu().item()
+                num_correct += (max_indices == labels).sum().cpu().item()
                 num_samples += output.shape[0] * output.shape[1]
 
             if rank in [0, torch.device("cpu")]:
@@ -482,25 +499,38 @@ def train_and_validate(
         # validation stuff (`model` already in eval mode):
         with torch.no_grad():
             for val_batch_idx, val_dict in enumerate(val_loader):
-                val_tokens = val_dict["source"].to(rank)
-                val_labels = val_dict["target"].to(rank)
+                src_tokens = val_dict["source"].to(rank)
+                target_tokens = torch.cat(
+                    (
+                        start_token_id
+                        * torch.ones(
+                            (src_tokens.shape[0], 1), dtype=torch.float32
+                        ),
+                        val_dict["target"],
+                    ),
+                    dim=1,
+                ).to(rank)
+                decoder_tokens = target_tokens[
+                    :, :-1
+                ]  # input to decoder, `[N, seq_length]`
+                labels = target_tokens[:, 1:]  # `[N, seq_length]`
 
                 with autocast(
-                    device_type=val_labels.device.type,
+                    device_type=src_tokens.device.type,
                     dtype=torch.float16,
                     enabled=use_amp,
                 ):
-                    val_output = model(val_tokens, val_labels)
+                    val_output = model(src_tokens, decoder_tokens)
                     val_loss = (
                         cce_mean(
                             # `[N * seq_length, vocab_size]`
                             val_output.reshape(-1, val_output.shape[-1]),
                             # `[N * seq_length]`
-                            val_labels.reshape(-1),
+                            labels.reshape(-1),
                         )
                         .cpu()
                         .item()
-                        * val_tokens.shape[0]
+                        * src_tokens.shape[0]
                     )
 
                 valLoss_perEpoch.append(val_loss)
@@ -509,7 +539,7 @@ def train_and_validate(
                 # TODO: write a `calculate_accuracy()` function
                 _, val_max_indices = val_output.max(dim=2, keepdim=False)
                 val_num_correct += (
-                    (val_max_indices == val_labels).cpu().sum().item()
+                    (val_max_indices == labels).cpu().sum().item()
                 )
                 batch_size = val_output.shape[0]
                 val_num_samples += batch_size * val_output.shape[1]
