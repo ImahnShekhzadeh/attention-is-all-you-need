@@ -8,6 +8,7 @@ from argparse import Namespace
 from datetime import datetime as dt
 
 import torch
+import wandb
 from dataset import DictDataset
 from datasets import load_dataset
 from scheduler import LRScheduler
@@ -29,7 +30,6 @@ from utils import (
     train_and_validate,
 )
 
-import wandb
 from architecture.models import Transformer
 from options import get_parser
 
@@ -230,7 +230,6 @@ def main(
             test_data=data["test"]["translation"],
             max__n_gram=args.max__n_gram,
             tokenizer=tokenizer,
-            device=rank,
         )
         logging.info(f"BLEU score: {bleu_score}")
 

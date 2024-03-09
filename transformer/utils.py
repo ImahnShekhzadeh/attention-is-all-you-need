@@ -16,6 +16,7 @@ import datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import wandb
 from prettytable import PrettyTable
 from scheduler import LRScheduler
 from tokenizers import Tokenizer
@@ -30,8 +31,6 @@ from torch.cuda.amp import GradScaler
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
 from torchtext.data.metrics import bleu_score
-
-import wandb
 
 
 def total_norm__grads(model: nn.Module) -> float:
@@ -414,7 +413,7 @@ def train_and_validate(
     """
 
     # loss function:
-    cce_mean = nn.CrossEntropyLoss(reduction="mean")
+    cce_mean = nn.CrossEntropyLoss(reduction="mean", ignore_index=pad_token_id)
 
     start_time = start_timer(device=rank)
     train_losses, val_losses, train_accs, val_accs = [], [], [], []

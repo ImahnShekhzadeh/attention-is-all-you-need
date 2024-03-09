@@ -44,6 +44,5 @@ For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 ## TODO
 [ ] generate text from trained transformer
 [ ] add flag to specify # checkpoints, implement code for this
-[ ] add function to compute BLEU score after training (https://pytorch.org/text/stable/data_metrics.html)
 [ ] add label smoothing
 [ ] add github action workflows

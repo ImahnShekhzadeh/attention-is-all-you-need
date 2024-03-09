@@ -20,7 +20,8 @@ dependencies = [
     "torchinfo~=1.8",
     "datasets~=2.17",
     "tokenizers~=0.15",
-    "torch~=2.1.0"
+    "torch~=2.1.0",
+    "torchtext~=0.16"
 ]
 
 [tool.isort]
@@ -30,6 +31,7 @@ line_length=79
 # necessary to get `isort` working in Docker container:
 overwrite_in_place=true
 known_first_party = ["architecture", "attention", "layers", "models", "options"]
+known_third_party = ["wandb"]
 
 [tool.black]
 line-length = 79
