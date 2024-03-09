@@ -260,7 +260,7 @@ class Transformer(nn.Module):
         # (Sec. 3.4 of [1]), then embed and encode,
         # `(N, seq_length, embed_dim)`
         shifted__decoder_input = output_tokens.roll(shifts=(0, 1), dims=(0, 1))
-        shifted__decoder_input[:, 0] = pad_token_id  
+        shifted__decoder_input[:, 0] = pad_token_id
         # TODO: fix, should be start_token_id
         shifted__decoder_input = math.sqrt(self.embed_dim) * self.embedding(
             shifted__decoder_input

@@ -208,7 +208,7 @@ def main(
         # was saved
         load_checkpoint(model=model, checkpoint=checkpoint)
 
-        # check accuracy on train and test set, compute BLEU score
+        # check accuracy on train and test set
         check_accuracy(
             train_loader,
             model,
@@ -223,6 +223,9 @@ def main(
             device=rank,
             pad_token_id=pad_token_id,
         )
+
+        # TODO: generate text by sampling from the model by first feeding
+        # tensor with [SOS] token
         bleu_score = compute__bleu_score(
             test_data=data["test"]["translation"],
             max__n_gram=args.max__n_gram,

@@ -201,7 +201,7 @@ def get_bpe_tokenizer(
         trainer = BpeTrainer(
             vocab_size=vocab_size,
             min_frequency=min_frequency,
-            special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"],
+            special_tokens=["[SOS]", "[UNK]", "[PAD]"],
         )
 
         tokenizer.pre_tokenizer = Whitespace()
