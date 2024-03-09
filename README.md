@@ -1,8 +1,10 @@
 # attention-is-all-you-need
 Implementation of the "Attention is All You Need" (arXiv:1706.03762) Paper
 
-## Notes
+## Tokenizer
 Note that the tokenizer `bpe_tokenizer_37k.json` used here was obtained by training on the training, validation and test data of the IWSLT2017 DE-EN data. This is the same data that the transformer sees. However, in this [video](https://www.youtube.com/watch?v=zduSFxRajkE), Karpathy recommends to use different data, so you might want to do that.
+
+Also, please note that the BPE tokenizer was first trained specifying the special tokens `[UNK]`, `[CLS]`, `[SEP]`, `[PAD]` and `MASK`. Later, I modified my code such that only `[UNK]` and `[PAD]` are special tokens appearing in the vocabulary, and added `[SOS]` as a start of sentence token. To avoid having to retrain the tokenizer for about two days on a consumer-grade CPU, I modified the used vocabulary [`bpe_tokenizer_37k.json`](transformer/bpe_tokenizer_37k.json) by removing the special token `[CLS]` and usnig `[SOS]` instead. This modification happened in-place.
 
 ## Run
 To run the python script,

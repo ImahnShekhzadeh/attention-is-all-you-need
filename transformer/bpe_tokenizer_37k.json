@@ -65,7 +65,7 @@
     "byte_fallback": false,
     "vocab": {
       "[UNK]": 0,
-      "[CLS]": 1,
+      "[SOS]": 1,
       "[SEP]": 2,
       "[PAD]": 3,
       "[MASK]": 4,
