@@ -267,9 +267,9 @@ class Transformer(nn.Module):
         # https://peterbloem.nl/blog/transformers
         mask = torch.tril(
             torch.ones(
-                encoder_input.shape[1],
-                encoder_input.shape[1],
-                device=encoder_input.device,
+                decoder_input.shape[1],
+                decoder_input.shape[1],
+                device=decoder_input.device,
             ),
             diagonal=0,
         )
