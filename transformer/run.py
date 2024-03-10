@@ -20,6 +20,7 @@ from utils import (
     check_accuracy,
     cleanup,
     compute__bleu_score,
+    generate_text,
     get_dataloaders,
     get_datasets_and_tokenizer,
     load_checkpoint,
@@ -228,6 +229,16 @@ def main(
 
         # TODO: generate text by sampling from the model by first feeding
         # tensor with [SOS] token
+        generate_text(
+            model=model,
+            tokenizer=tokenizer,
+            use_amp=args.use_amp,
+            test_loader=test_loader,
+            start_token_id=start_token_id,
+            rank=rank,
+        )
+
+        # compute BLEU score
         bleu_score = compute__bleu_score(
             test_data=data["test"]["translation"],
             max__n_gram=args.max__n_gram,

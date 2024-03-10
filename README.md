@@ -44,7 +44,7 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
-[ ] generate text from trained transformer
+[ ] test function `generate_text`
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing
 [ ] add github action workflows

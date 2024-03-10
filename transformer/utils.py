@@ -840,6 +840,60 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         )
 
 
+# TODO: extensively test this function
+def generate_text(
+    model: nn.Module,
+    tokenizer: Tokenizer,
+    use_amp: bool,
+    test_loader: DataLoader,
+    start_token_id: int,
+    rank: int | torch.device,
+) -> torch.Tensor:
+    """
+    Generate text from the model.
+
+    Args:
+        model: Transformer.
+        tokenizer: Tokenizer.
+        use_amp: Whether to use automatic mixed precision.
+        test_loader: Dataloader for the test set.
+        start_token_id: ID of the start token.
+        device: Device on which the code is executed.
+
+    Returns:
+        Generated text.
+    """
+    model.eval()
+    generated_ids = []
+
+    with torch.no_grad():
+        for test_dict in test_loader:
+            # tokens in source language `[N, seq_length]`
+            src_tokens = test_dict["source"].to(rank)
+
+            decoder_tokens = start_token_id * torch.ones(
+                (src_tokens.shape[0], 1), dtype=src_tokens.dtype
+            ).to(rank)
+
+            with autocast(
+                device_type=src_tokens.device.type,
+                dtype=torch.float16,
+                enabled=use_amp,
+            ):
+                # `[N, XXX, vocab_size]`
+                output = model(src_tokens, decoder_tokens)
+
+            # append the generated token IDs to decoder tokens
+            decoder_tokens = torch.cat(
+                (decoder_tokens, output.argmax(dim=2)), dim=1
+            )
+            generated_ids.append(output.argmax(dim=2).cpu())
+
+    generated_text = tokenizer.decode_batch(generated_ids.tolist())
+
+    return generated_text
+
+
 def compute__bleu_score(
     test_data: List[Dict],
     max__n_gram: int,
