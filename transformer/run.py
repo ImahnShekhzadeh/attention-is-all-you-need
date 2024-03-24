@@ -140,7 +140,7 @@ def main(
     # Optimizer:
     optimizer = optim.Adam(
         params=model.parameters(),
-        lr=1e-3,
+        lr=1e-3,  # dummy, will be set by scheduler
         betas=(0.9, 0.999),
         eps=1e-08,
     )
