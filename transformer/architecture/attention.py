@@ -252,14 +252,14 @@ class DecoderMultiHeadAttention(nn.Module):
         """
 
         # weights:
-        xavier_uniform_(self.qk_proj.weight)
-        xavier_uniform_(self.v_proj.weight)
+        xavier_uniform_(self.q_proj.weight)
+        xavier_uniform_(self.vk_proj.weight)
         xavier_uniform_(self.o_proj.weight)
 
         if self.use_bias:
             # biases:
-            self.qk_proj.bias.data.fill_(0)
-            self.v_proj.bias.data.fill_(0)
+            self.q_proj.bias.data.fill_(0)
+            self.vk_proj.bias.data.fill_(0)
             self.o_proj.bias.data.fill_(0)
 
     def forward(
