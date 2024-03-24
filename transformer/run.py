@@ -162,40 +162,40 @@ def main(
             ),
         )
 
-    # Train the network:
-    lr_scheduler = LRScheduler(
-        optimizer=optimizer,
-        d_model=args.embedding_dim,
-        warmup_steps=args.warmup_steps,
-        lr_multiplier=args.lr_multiplier,
-    )
-    checkpoint = train_and_validate(
-        pad_token_id=pad_token_id,
-        start_token_id=start_token_id,
-        model=model,
-        optimizer=optimizer,
-        num_epochs=args.num_epochs,
-        rank=rank,
-        use_amp=args.use_amp,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        lr_scheduler=lr_scheduler,
-        freq_output__train=args.freq_output__train,
-        freq_output__val=args.freq_output__val,
-        max_norm=args.max_norm,
-        world_size=world_size,
-        wandb_logging=wandb_logging,
-    )
-
-    if rank in [0, torch.device("cpu")]:
-        # save model and optimizer state dicts
-        save_checkpoint(
-            state=checkpoint,
-            filename=os.path.join(
-                args.saving_path,
-                f"cp_{dt.now().strftime('%dp%mp%Y_%Hp%M')}.pt",
-            ),
+    if args.train:
+        lr_scheduler = LRScheduler(
+            optimizer=optimizer,
+            d_model=args.embedding_dim,
+            warmup_steps=args.warmup_steps,
+            lr_multiplier=args.lr_multiplier,
         )
+        checkpoint = train_and_validate(
+            pad_token_id=pad_token_id,
+            start_token_id=start_token_id,
+            model=model,
+            optimizer=optimizer,
+            num_epochs=args.num_epochs,
+            rank=rank,
+            use_amp=args.use_amp,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            lr_scheduler=lr_scheduler,
+            freq_output__train=args.freq_output__train,
+            freq_output__val=args.freq_output__val,
+            max_norm=args.max_norm,
+            world_size=world_size,
+            wandb_logging=wandb_logging,
+        )
+
+        if rank in [0, torch.device("cpu")]:
+            # save model and optimizer state dicts
+            save_checkpoint(
+                state=checkpoint,
+                filename=os.path.join(
+                    args.saving_path,
+                    f"cp_{dt.now().strftime('%dp%mp%Y_%Hp%M')}.pt",
+                ),
+            )
 
     # destroy process group if DDP was used (for clean exit)
     if args.use_ddp:
@@ -205,11 +205,12 @@ def main(
         if wandb_logging:
             wandb.finish()
 
-        # load checkpoint with lowest validation loss for final evaluation;
-        # device does not need to be specified, since the checkpoint will be
-        # loaded on the CPU or GPU with ID 0 depending on where the checkpoint
-        # was saved
-        load_checkpoint(model=model, checkpoint=checkpoint)
+        if args.train:
+            # load checkpoint with lowest validation loss for final evaluation;
+            # device does not need to be specified, since the checkpoint will
+            # be loaded on the CPU or GPU with ID 0 depending on where the
+            # checkpoint was saved
+            load_checkpoint(model=model, checkpoint=checkpoint)
 
         # check accuracy on train and test set
         check_accuracy(

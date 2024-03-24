@@ -76,6 +76,14 @@ def get_parser() -> argparse.ArgumentParser:
         help="If specified, seed number is used for RNG.",
     )
     parser.add_argument(
+        "--train",
+        action="store_true",
+        help=(
+            "Whether to train the model for `num_epochs` epochs, or whether "
+            "to do evaluation only."
+        ),
+    )
+    parser.add_argument(
         "--warmup_steps",
         type=int,
         default=4000,

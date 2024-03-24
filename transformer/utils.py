@@ -157,6 +157,15 @@ def check_args(args: Namespace) -> None:
         "``dropout_rate`` should be chosen between 0 (inclusive) and 1 "
         f"(exclusive), but is {args.dropout_rate}."
     )
+    if args.train:
+        assert (
+            args.num_epochs > 0
+        ), "Number of epochs should be greater than 0 when training."
+    else:
+        assert args.loading_path is not None, (
+            "`--train` flag was not passed, so please provide a path to load "
+            "the model from."
+        )
 
 
 def get_bpe_tokenizer(
