@@ -212,6 +212,8 @@ def main(
             # checkpoint was saved
             load_checkpoint(model=model, checkpoint=checkpoint)
 
+        model.eval()
+
         # check accuracy on train and test set
         check_accuracy(
             train_loader,

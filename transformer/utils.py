@@ -162,6 +162,11 @@ def check_args(args: Namespace) -> None:
             args.num_epochs > 0
         ), "Number of epochs should be greater than 0 when training."
     else:
+        if args.num_epochs > 0:
+            logging.warning(
+                "`--train` flag not set, but `--num_epochs > 0` is provided."
+                "Training will NOT be performed."
+            )
         assert args.loading_path is not None, (
             "`--train` flag was not passed, so please provide a path to load "
             "the model from."

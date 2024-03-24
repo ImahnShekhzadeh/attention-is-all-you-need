@@ -10,7 +10,11 @@ Also, please note that the BPE tokenizer was first trained specifying the specia
 To run the python script,
 ```
 docker build -f Dockerfile -t transformers:1.0.0 .
-docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --train
+```
+In order to generate text from a pre-trained model, run
+```
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --loading_path <loading_path>
 ```
 To run the python script locally in a conda environment, which allows for faster debugging,
 ```
