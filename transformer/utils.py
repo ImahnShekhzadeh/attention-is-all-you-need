@@ -479,9 +479,10 @@ def train_and_validate(
                 loss.cpu().item() * src_tokens.shape[0]
             )
 
-            # calculate accuracy
             with torch.no_grad():
-                model.eval()
+                # ignore padding tokens
+                labels = torch.where(labels == pad_token_id, -1, labels)
+                # calculate accuracy
                 _, max_indices = output.max(dim=2, keepdim=False)
                 num_correct += (max_indices == labels).sum().cpu().item()
                 num_samples += output.shape[0] * output.shape[1]
@@ -496,7 +497,8 @@ def train_and_validate(
                     frequency=freq_output__train,
                 )
 
-        # validation stuff (`model` already in eval mode):
+        # validation stuff:
+        model.eval()
         with torch.no_grad():
             for val_batch_idx, val_dict in enumerate(val_loader):
                 src_tokens = val_dict["source"].to(rank)
@@ -535,8 +537,9 @@ def train_and_validate(
 
                 valLoss_perEpoch.append(val_loss)
 
+                # ignore padding tokens
+                labels = torch.where(labels == pad_token_id, -1, labels)
                 # calculate accuracy
-                # TODO: write a `calculate_accuracy()` function
                 _, val_max_indices = val_output.max(dim=2, keepdim=False)
                 val_num_correct += (
                     (val_max_indices == labels).cpu().sum().item()
@@ -829,7 +832,9 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         for dict in loader:
             tokens = dict["source"].to(device)  # `[N, seq_length]`
             labels = dict["target"].to(device)  # `[N, seq_length]`
-            output = model(tokens, labels, pad_token_id)
+            output = model(tokens, labels)
+            # ignore padding tokens
+            labels = torch.where(labels == pad_token_id, -1, labels)
             _, max_indices = output.max(dim=2, keepdim=False)
             num_correct += (max_indices == labels).sum().cpu().item()
             num_samples += output.shape[0] * output.shape[1]
