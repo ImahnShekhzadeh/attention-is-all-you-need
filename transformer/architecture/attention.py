@@ -227,13 +227,13 @@ class DecoderMultiHeadAttention(nn.Module):
         # (cf. Sec. 3.2.2 of [1])
         self.head_dim = int(embed_dim / num_heads)
 
-        # stack querky and key weight matrices per self-attention head
-        self.qk_proj = nn.Linear(
+        # stack value and key weight matrices per self-attention head
+        self.vk_proj = nn.Linear(
             in_features=embed_dim,
             out_features=2 * embed_dim,
             bias=use_bias,
         )
-        self.v_proj = nn.Linear(
+        self.q_proj = nn.Linear(
             in_features=embed_dim,
             out_features=embed_dim,
             bias=use_bias,
@@ -284,30 +284,30 @@ class DecoderMultiHeadAttention(nn.Module):
             attention weights in shape
             `(N, self.num_heads, seq_length, seq_length)`
         """
-        qk = self.qk_proj(encoder_output)  # `(N, seq_length, 2 * embed_dim)`
-        v = self.v_proj(x)  # `(N, seq_length, embed_dim)`
+        vk = self.vk_proj(encoder_output)  # `(N, seq_length, 2 * embed_dim)`
+        q = self.q_proj(x)  # `(N, seq_length, embed_dim)`
 
         # reshape into `(N, seq_length, self.num_heads, 2 * self.head_dim)`,
         # then permute into
         # `(N, self.num_heads, seq_length, 2 * self.head_dim)`;
         # note that `self.embed_dim = self.num_heads * self.head_dim`
-        qk = qk.reshape(
-            qk.shape[0], qk.shape[1], self.num_heads, 2 * self.head_dim
-        ).permute(dims=(0, 2, 1, 3))
+        vk = vk.reshape(
+            vk.shape[0], vk.shape[1], self.num_heads, 2 * self.head_dim
+        )
+        vk = vk.permute(dims=(0, 2, 1, 3))
 
-        v = v.reshape(
-            v.shape[0], v.shape[1], self.num_heads, self.head_dim
-        ).permute(dims=(0, 2, 1, 3))
+        q = q.reshape(q.shape[0], q.shape[1], self.num_heads, self.head_dim)
+        q = q.permute(dims=(0, 2, 1, 3))
 
         # separate queries and keys
         # `(N, self.num_heads, seq_length, self.head_dim)`
-        q_proj, k_proj = qk.chunk(chunks=2, dim=-1)
+        v_proj, k_proj = vk.chunk(chunks=2, dim=-1)
 
         # Determine value outputs
         # shape of `values`: `(N, self.num_heads, seq_length, self.head_dim)`
         # shape of `attn_weights`:
         # `(N, self.num_heads, seq_length, seq_length')`
-        values, attn_weights = scaled_dot_product_attn(q_proj, k_proj, v)
+        values, attn_weights = scaled_dot_product_attn(q, k_proj, v_proj)
         # permute and reshape
         # `(N, seq_length, self.embed_dim)`
         values = (values := values.permute(0, 2, 1, 3)).reshape(
