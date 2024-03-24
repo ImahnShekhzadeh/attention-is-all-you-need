@@ -556,7 +556,7 @@ def train_and_validate(
                 # calculate accuracy
                 _, val_max_indices = val_output.max(dim=2, keepdim=False)
                 val_num_correct += (
-                    (val_max_indices == labels).cpu().sum().item()
+                    (val_max_indices == labels).sum().cpu().item()
                 )
                 batch_size = val_output.shape[0]
                 val_num_samples += batch_size * val_output.shape[1]
@@ -859,7 +859,9 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         )
 
 
-# TODO: extensively test this function
+# TODO: expand this function with while-loop to iteratively feed
+# the model with the generated tokens
+@torch.no_grad()
 def generate_text(
     model: nn.Module,
     tokenizer: Tokenizer,
@@ -885,30 +887,30 @@ def generate_text(
     model.eval()
     generated_ids = []
 
-    with torch.no_grad():
-        for test_dict in test_loader:
-            # tokens in source language `[N, seq_length]`
-            src_tokens = test_dict["source"].to(rank)
+    for test_dict in test_loader:
+        # tokens in source language `[N, seq_length]`
+        src_tokens = test_dict["source"].to(rank)
 
-            decoder_tokens = start_token_id * torch.ones(
-                (src_tokens.shape[0], 1), dtype=src_tokens.dtype
-            ).to(rank)
+        decoder_tokens = start_token_id * torch.ones(
+            (src_tokens.shape[0], 1), dtype=src_tokens.dtype
+        ).to(rank)
 
-            with autocast(
-                device_type=src_tokens.device.type,
-                dtype=torch.float16,
-                enabled=use_amp,
-            ):
-                # `[N, XXX, vocab_size]`
-                output = model(src_tokens, decoder_tokens)
+        with autocast(
+            device_type=src_tokens.device.type,
+            dtype=torch.float16,
+            enabled=use_amp,
+        ):
+            # `[N, XXX, vocab_size]`
+            output = model(src_tokens, decoder_tokens)
 
-            # append the generated token IDs to decoder tokens
-            decoder_tokens = torch.cat(
-                (decoder_tokens, output.argmax(dim=2)), dim=1
-            )
-            generated_ids.append(output.argmax(dim=2).cpu())
+        # append the generated token IDs to decoder tokens
+        decoder_tokens = torch.cat(
+            (decoder_tokens, output.argmax(dim=2)), dim=1
+        )
+        generated_ids.extend(output.argmax(dim=2).cpu().tolist())
 
-    generated_text = tokenizer.decode_batch(generated_ids.tolist())
+    generated_text = tokenizer.decode_batch(generated_ids)
+    logging.info(f"Generated translations:\n\n{generated_text}")
 
     return generated_text
 

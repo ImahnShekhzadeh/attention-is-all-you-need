@@ -118,7 +118,7 @@ def main(
 
     # setup Weights & Biases, print # data and log parameter table
     if rank in [0, torch.device("cpu")]:
-        wandb_logging = args.wandb__api_key is not None
+        wandb_logging = args.wandb__api_key is not None and args.train
         if wandb_logging:
             wandb.login(key=args.wandb__api_key)
             wandb.init(project="transformer")
@@ -232,7 +232,7 @@ def main(
 
         # TODO: generate text by sampling from the model by first feeding
         # tensor with [SOS] token
-        generate_text(
+        generated_data = generate_text(
             model=model,
             tokenizer=tokenizer,
             use_amp=args.use_amp,

@@ -48,8 +48,9 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
+[ ] fix function `generate_text` (write while-loop to iteratively feed the model with the generated tokens)
+[ ] set `lr_multiplier` in `conf.json` to `1` and train for `30` epochs
 [ ] add start token to encoder input as well
-[ ] test function `generate_text`
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing
 [ ] add github action workflows
