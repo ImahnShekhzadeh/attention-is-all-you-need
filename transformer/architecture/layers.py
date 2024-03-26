@@ -121,7 +121,7 @@ class DecoderBlock(nn.Module):
             use_bias=use_bias,
         )
 
-        # multi-head attention layer, where queries and keys come from encoder
+        # multi-head attention layer, where keys and values come from encoder
         # output
         self.decoder__multihead_attn = DecoderMultiHeadAttention(
             embed_dim=embed_dim,

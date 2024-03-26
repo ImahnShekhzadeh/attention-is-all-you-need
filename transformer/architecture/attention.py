@@ -201,8 +201,8 @@ class DecoderMultiHeadAttention(nn.Module):
         use_bias: bool = False,
     ) -> None:
         """
-        Multi-head attention, where the queries and keys are taken from the
-        output of the encoder, and the values come from the previous masked
+        Multi-head attention, where the keys and values are taken from the
+        output of the encoder, and the queries come from the previous masked
         multi-head attention part in the decoder.
 
         Args:
