@@ -121,7 +121,11 @@ def main(
         wandb_logging = args.wandb__api_key is not None and args.train
         if wandb_logging:
             wandb.login(key=args.wandb__api_key)
-            wandb.init(project="transformer")
+            wandb.init(
+                project="transformer",
+                name=dt.now().strftime("%dp%mp%Y_%Hp%M"),
+                config=args,
+            )
 
         logging.info(
             f"Pad token ID: {pad_token_id}\n# Train:val:test sentences: "
