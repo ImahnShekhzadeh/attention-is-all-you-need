@@ -859,8 +859,6 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         )
 
 
-# TODO: expand this function with while-loop to iteratively feed
-# the model with the generated tokens
 @torch.no_grad()
 def generate_text(
     model: nn.Module,
@@ -879,7 +877,7 @@ def generate_text(
         use_amp: Whether to use automatic mixed precision.
         test_loader: Dataloader for the test set.
         start_token_id: ID of the start token.
-        device: Device on which the code is executed.
+        rank: Device on which the code is executed.
 
     Returns:
         Generated text.
@@ -895,19 +893,23 @@ def generate_text(
             (src_tokens.shape[0], 1), dtype=src_tokens.dtype
         ).to(rank)
 
-        with autocast(
-            device_type=src_tokens.device.type,
-            dtype=torch.float16,
-            enabled=use_amp,
-        ):
-            # `[N, XXX, vocab_size]`
-            output = model(src_tokens, decoder_tokens)
+        while decoder_tokens.shape[1] < src_tokens.shape[1]:
+            with autocast(
+                device_type=src_tokens.device.type,
+                dtype=torch.float16,
+                enabled=use_amp,
+            ):
+                # `[N, decoder_tokens.shape[1], vocab_size]`
+                output = model(src_tokens, decoder_tokens)
 
-        # append the generated token IDs to decoder tokens
-        decoder_tokens = torch.cat(
-            (decoder_tokens, output.argmax(dim=2)), dim=1
-        )
-        generated_ids.extend(output.argmax(dim=2).cpu().tolist())
+            # get the generated token IDs
+            generated_tokens = output.argmax(dim=2)[:, -1]
+
+            # append the generated token IDs to decoder tokens
+            decoder_tokens = torch.cat(
+                (decoder_tokens, generated_tokens), dim=1
+            )
+            generated_ids.extend(generated_tokens.cpu().tolist())
 
     generated_text = tokenizer.decode_batch(generated_ids)
     logging.info(f"Generated translations:\n\n{generated_text}")
