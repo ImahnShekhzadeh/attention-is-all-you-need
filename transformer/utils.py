@@ -903,7 +903,7 @@ def generate_text(
                 output = model(src_tokens, decoder_tokens)
 
             # get the generated token IDs
-            generated_tokens = output.argmax(dim=2)[:, -1]
+            generated_tokens = output.argmax(dim=2)[:, -1].unsqueeze(dim=1)
 
             # append the generated token IDs to decoder tokens
             decoder_tokens = torch.cat(
