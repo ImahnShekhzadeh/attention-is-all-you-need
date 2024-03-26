@@ -909,7 +909,8 @@ def generate_text(
             decoder_tokens = torch.cat(
                 (decoder_tokens, generated_tokens), dim=1
             )
-            generated_ids.extend(generated_tokens.cpu().tolist())
+
+        generated_ids.extend(decoder_tokens.cpu().tolist())
 
     generated_text = tokenizer.decode_batch(generated_ids)
     logging.info(f"Generated translations:\n\n{generated_text}")
