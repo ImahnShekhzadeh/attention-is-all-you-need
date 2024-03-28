@@ -173,6 +173,17 @@ def main(
             warmup_steps=args.warmup_steps,
             lr_multiplier=args.lr_multiplier,
         )
+        # define mask in shape `(seq_length, seq_length)` to prevent the
+        # decoder from attending to subsequent tokens, also cf.
+        # https://peterbloem.nl/blog/transformers
+        mask = torch.tril(
+            torch.ones(
+                args.seq_length,
+                args.seq_length,
+                device=rank,
+            ),
+            diagonal=0,
+        )
         checkpoint = train_and_validate(
             pad_token_id=pad_token_id,
             start_token_id=start_token_id,
@@ -189,6 +200,7 @@ def main(
             max_norm=args.max_norm,
             world_size=world_size,
             wandb_logging=wandb_logging,
+            tgt_mask=mask,
         )
 
         if rank in [0, torch.device("cpu")]:
@@ -225,6 +237,7 @@ def main(
             mode="train",
             device=rank,
             pad_token_id=pad_token_id,
+            tgt_mask=mask,
         )
         check_accuracy(
             test_loader,
@@ -232,6 +245,7 @@ def main(
             mode="test",
             device=rank,
             pad_token_id=pad_token_id,
+            tgt_mask=mask,
         )
 
         # TODO: generate text by sampling from the model by first feeding

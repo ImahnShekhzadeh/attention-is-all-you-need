@@ -402,6 +402,7 @@ def train_and_validate(
     max_norm: Optional[float] = None,
     world_size: Optional[int] = None,
     wandb_logging: bool = False,
+    tgt_mask: Optional[torch.Tensor] = None,
 ) -> Dict[torch.Tensor, torch.Tensor]:
     """
     Train and validate the model.
@@ -423,6 +424,9 @@ def train_and_validate(
         world_size: Number of processes participating in the job. Used to get
             the number of iterations correctly in a DDP setup.
         wandb_logging: API key for Weights & Biases.
+        tgt_mask: Look-ahead mask for the decoder, of shape
+            `(seq_length, seq_length)`, to prevent the decoder from attending
+             to subsequent tokens in the sequence.
 
     Returns:
         checkpoint: Checkpoint of the model.
@@ -473,7 +477,7 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 # `[N, seq_length, vocab_size]`
-                output = model(src_tokens, decoder_tokens)
+                output = model(src_tokens, decoder_tokens, tgt_mask)
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
                     output.reshape(-1, output.shape[-1]),
@@ -536,7 +540,7 @@ def train_and_validate(
                     dtype=torch.float16,
                     enabled=use_amp,
                 ):
-                    val_output = model(src_tokens, decoder_tokens)
+                    val_output = model(src_tokens, decoder_tokens, tgt_mask)
                     val_loss = (
                         cce_mean(
                             # `[N * seq_length, vocab_size]`
@@ -821,7 +825,7 @@ def log_parameter_table(model: nn.Module) -> None:
     logging.info(f"{table}\nTotal trainable params: {total_params}")
 
 
-def check_accuracy(loader, model, mode, device, pad_token_id):
+def check_accuracy(loader, model, mode, device, pad_token_id, tgt_mask=None):
     """
     Check the accuracy of a given model on a given dataset.
 
@@ -835,6 +839,9 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         device (torch.device)                       -- Device on which the code
             was executed.
         pad_token_id: ID of the pad token.
+        tgt_mask: Look-ahead mask for the decoder, of shape
+            `(seq_length, seq_length)`, to prevent the decoder from attending
+            to subsequent tokens in the sequence.
     """
     assert mode in ["train", "test"]
 
@@ -846,7 +853,7 @@ def check_accuracy(loader, model, mode, device, pad_token_id):
         for dict in loader:
             tokens = dict["source"].to(device)  # `[N, seq_length]`
             labels = dict["target"].to(device)  # `[N, seq_length]`
-            output = model(tokens, labels)
+            output = model(tokens, labels, tgt_mask)
             # ignore padding tokens
             labels = torch.where(labels == pad_token_id, -1, labels)
             _, max_indices = output.max(dim=2, keepdim=False)

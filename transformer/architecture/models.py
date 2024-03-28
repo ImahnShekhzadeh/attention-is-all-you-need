@@ -232,6 +232,7 @@ class Transformer(nn.Module):
         self,
         input_tokens: torch.Tensor,
         output_tokens: torch.Tensor,
+        tgt_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
@@ -241,6 +242,9 @@ class Transformer(nn.Module):
                 `(N, seq_length)`
             output_tokens: Input tokens to decoder ("target" language) in shape
                 `(N, seq_length)`
+            tgt_mask: Look-ahead mask for the decoder, of shape
+                `(seq_length, seq_length)`, to prevent the decoder from
+                attending to subsequent tokens in the sequence.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
@@ -262,21 +266,9 @@ class Transformer(nn.Module):
         decoder_input = self.pos_encod(decoder_input)
         decoder_input = self.dropout(decoder_input)
 
-        # implement mask for the first self-attention mechanism of shape
-        # `(seq_length, seq_length)`, also cf.
-        # https://peterbloem.nl/blog/transformers
-        mask = torch.tril(
-            torch.ones(
-                decoder_input.shape[1],
-                decoder_input.shape[1],
-                device=decoder_input.device,
-            ),
-            diagonal=0,
-        )
-
         # forward pass through encoder, decoder and linear layer
         x = self.encoder(encoder_input, mask=None)
-        x = self.decoder(decoder_input, x, mask=mask)
+        x = self.decoder(decoder_input, x, mask=tgt_mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
         return x

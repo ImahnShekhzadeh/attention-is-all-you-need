@@ -48,10 +48,10 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
-[ ] in `models.py`, create the "look-ahead" mask **outside** the forward func and instead add arg `tgt_mask`
 [ ] introduce args `tgt_padding_mask` and `src_padding_mask` in forward func of Transformer
 [ ] in `scaled_dot_product_attn()`, refactor signature: `mask` and `padding_mask`. if both are provided, then `torch.min(mask, padding_mask)` should be the `mask` applied.
 [ ] add start token to encoder input as well
+[ ] I think the way the accuracy is calculated is wrong (both in `train_and_validate()` and in `check_accuracy()`). instead of taking `argmax`, `max` might have to be taken.
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing
 [ ] add github action workflows
