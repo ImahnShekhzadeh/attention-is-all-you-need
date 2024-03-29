@@ -448,9 +448,8 @@ def train_and_validate(
         for batch_idx, dict in enumerate(train_loader):
             model.train()
 
-            # tokens in source language `[N, seq_length]`
-            src_tokens = dict["source"].to(rank)
-            # tokens in target language, `[N, seq_length + 1]`
+            src_tokens = dict["source"].to(rank)  # `(N, S)`
+            src_key_padding_mask = src_tokens == pad_token_id  # `(N, S)`
             target_tokens = torch.cat(
                 (
                     start_token_id
@@ -460,11 +459,14 @@ def train_and_validate(
                     dict["target"],
                 ),
                 dim=1,
-            ).to(rank)
+            ).to(
+                rank
+            )  # `(N, T + 1)`
             decoder_tokens = target_tokens[
                 :, :-1
-            ]  # input to decoder, `[N, seq_length]`
-            labels = target_tokens[:, 1:]  # `[N, seq_length]`
+            ]  # input to decoder, `(N, T)`
+            labels = target_tokens[:, 1:]  # `(N, T)`
+            tgt_key_padding_mask = decoder_tokens == pad_token_id  # `(N, T)`
 
             optimizer.zero_grad()
             if lr_scheduler is not None:
@@ -476,7 +478,13 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 # `[N, seq_length, vocab_size]`
-                output = model(src_tokens, decoder_tokens, tgt_mask=tgt_mask)
+                output = model(
+                    src_tokens,
+                    decoder_tokens,
+                    tgt_mask=tgt_mask,
+                    src_key_padding_mask=src_key_padding_mask,
+                    tgt_key_padding_mask=tgt_key_padding_mask,
+                )
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
                     output.reshape(-1, output.shape[-1]),
@@ -511,6 +519,7 @@ def train_and_validate(
         with torch.no_grad():
             for val_batch_idx, val_dict in enumerate(val_loader):
                 src_tokens = val_dict["source"].to(rank)
+                src_key_padding_mask = src_tokens == pad_token_id
                 target_tokens = torch.cat(
                     (
                         start_token_id
@@ -523,8 +532,11 @@ def train_and_validate(
                 ).to(rank)
                 decoder_tokens = target_tokens[
                     :, :-1
-                ]  # input to decoder, `[N, seq_length]`
-                labels = target_tokens[:, 1:]  # `[N, seq_length]`
+                ]  # input to decoder, `(N, T)`
+                tgt_key_padding_mask = (
+                    decoder_tokens == pad_token_id
+                )  # `(N, T)`
+                labels = target_tokens[:, 1:]  # `(N, T)`
 
                 with autocast(
                     device_type=src_tokens.device.type,
@@ -532,7 +544,11 @@ def train_and_validate(
                     enabled=use_amp,
                 ):
                     val_output = model(
-                        src_tokens, decoder_tokens, tgt_mask=tgt_mask
+                        src_tokens,
+                        decoder_tokens,
+                        tgt_mask=tgt_mask,
+                        src_key_padding_mask=src_key_padding_mask,
+                        tgt_key_padding_mask=tgt_key_padding_mask,
                     )
                     val_loss = (
                         cce_mean(

@@ -92,6 +92,13 @@ def scaled_dot_product_attn(
                 f". Instead, padding mask has shape {key_padding_mask.shape}."
             )
             key_padding_mask = key_padding_mask.unsqueeze(1)
+        elif attn_logits.ndim == 4:
+            assert key_padding_mask.ndim == 2, (
+                "For batched queries, keys and values, padding mask must be "
+                f"2D of shape ({attn_logits.shape[0]}, {attn_logits.shape[2]})"
+                f". Instead, padding mask has shape {key_padding_mask.shape}."
+            )
+            key_padding_mask = key_padding_mask.unsqueeze(1).unsqueeze(1)
 
         attn_logits.masked_fill_(key_padding_mask == 1, -float("inf"))
 
