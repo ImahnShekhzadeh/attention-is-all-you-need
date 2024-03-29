@@ -65,7 +65,7 @@ class EncoderBlock(nn.Module):
         Args:
             x: Input tensor of shape `(N, seq_length, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
-            mask: Mask, either 2D, 3D or 4D
+            mask: Mask for the source sequence, either 2D, 3D or 4D
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -74,7 +74,7 @@ class EncoderBlock(nn.Module):
         # multi-head attention part
         out = self.multihead_attn(
             x=x,
-            mask=mask,
+            attn_mask=mask,
         )
         out = self.norm_a(self.dropout(out) + x)
 
@@ -160,7 +160,8 @@ class DecoderBlock(nn.Module):
                 (`input_dim = embed_dim = d_model` in [1])
             encoder_output: Encoder output in shape
                 `(N, seq_length, embed_dim)` (`embed_dim = d_model` in [1])
-            mask: Mask, either 2D, 3D or 4D (prevents attending to future)
+            mask: Mask for the target sequence, either 2D, 3D or 4D (prevents
+                attending to future)
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -169,7 +170,7 @@ class DecoderBlock(nn.Module):
         # multi-head attention part
         out_a = self.multihead_attn(
             x=x,
-            mask=mask,
+            attn_mask=mask,
         )
         out_a = self.norm_a(self.dropout(out_a) + x)
 

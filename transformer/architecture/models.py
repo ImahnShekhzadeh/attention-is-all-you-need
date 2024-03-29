@@ -54,7 +54,7 @@ class Encoder(nn.Module):
 
         Args:
             x: Input tensor of shape `(N, seq_length, input_dim)`
-            mask: Mask, either 2D, 3D or 4D
+            mask: Mask for the source sequence, either 2D, 3D or 4D
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -141,7 +141,7 @@ class Decoder(nn.Module):
         Args:
             x: Input tensor of shape `(N, seq_length, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
-            mask: Mask, either 2D, 3D or 4D
+            mask: Mask for the target sequence, either 2D, 3D or 4D
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -232,6 +232,7 @@ class Transformer(nn.Module):
         self,
         input_tokens: torch.Tensor,
         output_tokens: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
         tgt_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
@@ -239,12 +240,11 @@ class Transformer(nn.Module):
 
         Args:
             input_tokens: Input tokens to encoder ("source" language) in shape
-                `(N, seq_length)`
+                `(N, seq_length)`.
             output_tokens: Input tokens to decoder ("target" language) in shape
-                `(N, seq_length)`
-            tgt_mask: Look-ahead mask for the decoder, of shape
-                `(seq_length, seq_length)`, to prevent the decoder from
-                attending to subsequent tokens in the sequence.
+                `(N, seq_length)`.
+            src_mask: Mask for the source sequence, either 2D, 3D or 4D.
+            tgt_mask: Mask for the target sequence, either 2D, 3D or 4D.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
@@ -267,7 +267,7 @@ class Transformer(nn.Module):
         decoder_input = self.dropout(decoder_input)
 
         # forward pass through encoder, decoder and linear layer
-        x = self.encoder(encoder_input, mask=None)
+        x = self.encoder(encoder_input, mask=src_mask)
         x = self.decoder(decoder_input, x, mask=tgt_mask)
         x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
 
