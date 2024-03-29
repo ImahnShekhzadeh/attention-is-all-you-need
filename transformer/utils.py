@@ -931,4 +931,9 @@ def compute__bleu_score(
     for dict in test_data:
         reference_data.append(dict["en"])
 
-    return bleu_score(generated_data, test_data, max__n_gram)
+    return bleu_score(
+        generated_data,
+        test_data,
+        max__n_gram,
+        weights=[1 / max__n_gram for _ in range(max__n_gram)],
+    )
