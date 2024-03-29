@@ -430,7 +430,9 @@ def train_and_validate(
     tgt_mask: Optional[torch.Tensor] = None,
 ) -> Dict[torch.Tensor, torch.Tensor]:
     """
-    Train and validate the model.
+    Train and validate the model. For the memory key padding mask of the
+    transformer, the padding mask of the source sequence is taken, as done
+    in [1].
 
     Args:
         pad_token_id: ID of the pad token `[PAD]`.
@@ -455,6 +457,8 @@ def train_and_validate(
 
     Returns:
         checkpoint: Checkpoint of the model.
+
+    [1] https://pytorch.org/tutorials/beginner/translation_transformer.html
     """
 
     # loss function:
@@ -509,6 +513,7 @@ def train_and_validate(
                     tgt_mask=tgt_mask,
                     src_key_padding_mask=src_key_padding_mask,
                     tgt_key_padding_mask=tgt_key_padding_mask,
+                    memory_key_padding_mask=src_key_padding_mask,
                 )
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
@@ -574,6 +579,7 @@ def train_and_validate(
                         tgt_mask=tgt_mask,
                         src_key_padding_mask=src_key_padding_mask,
                         tgt_key_padding_mask=tgt_key_padding_mask,
+                        memory_key_padding_mask=src_key_padding_mask,
                     )
                     val_loss = (
                         cce_mean(
