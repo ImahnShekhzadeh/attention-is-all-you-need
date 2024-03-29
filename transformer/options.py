@@ -29,13 +29,13 @@ def get_parser() -> argparse.ArgumentParser:
         "--freq_output__train",
         type=int,
         default=1,
-        help="Frequency of outputting the training loss and accuracy.",
+        help="Frequency of outputting the training loss.",
     )
     parser.add_argument(
         "--freq_output__val",
         type=int,
         default=1,
-        help="Frequency of outputting the validation loss and accuracy.",
+        help="Frequency of outputting the validation loss.",
     )
     parser.add_argument(
         "--lr_multiplier",
@@ -67,7 +67,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--saving_path",
         type=str,
         default="",
-        help="Saving path for the files (loss plot, accuracy plot, etc.)",
+        help="Saving path of files (checkpoints, logs, etc.).",
     )
     parser.add_argument(
         "--seed_number",

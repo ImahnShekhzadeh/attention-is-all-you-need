@@ -15,9 +15,7 @@ from scheduler import LRScheduler
 from torch import multiprocessing as mp
 from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torchinfo import summary
 from utils import (
-    check_accuracy,
     cleanup,
     compute__bleu_score,
     generate_text,
@@ -229,24 +227,6 @@ def main(
             load_checkpoint(model=model, checkpoint=checkpoint)
 
         model.eval()
-
-        # check accuracy on train and test set
-        check_accuracy(
-            train_loader,
-            model,
-            mode="train",
-            device=rank,
-            pad_token_id=pad_token_id,
-            tgt_mask=mask,
-        )
-        check_accuracy(
-            test_loader,
-            model,
-            mode="test",
-            device=rank,
-            pad_token_id=pad_token_id,
-            tgt_mask=mask,
-        )
 
         # TODO: generate text by sampling from the model by first feeding
         # tensor with [SOS] token

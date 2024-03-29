@@ -436,7 +436,7 @@ def train_and_validate(
     cce_mean = nn.CrossEntropyLoss(reduction="mean", ignore_index=pad_token_id)
 
     start_time = start_timer(device=rank)
-    train_losses, val_losses, train_accs, val_accs = [], [], [], []
+    train_losses, val_losses = [], []
     min_val_loss = float("inf")
 
     scaler = GradScaler(enabled=use_amp)
@@ -444,7 +444,6 @@ def train_and_validate(
     for epoch in range(num_epochs):
         t0 = start_timer(device=rank)
         trainingLoss_perEpoch, valLoss_perEpoch = [], []
-        num_correct, num_samples, val_num_correct, val_num_samples = 0, 0, 0, 0
 
         for batch_idx, dict in enumerate(train_loader):
             model.train()
@@ -497,14 +496,6 @@ def train_and_validate(
                 loss.cpu().item() * src_tokens.shape[0]
             )
 
-            with torch.no_grad():
-                # ignore padding tokens
-                labels = torch.where(labels == pad_token_id, -1, labels)
-                # calculate accuracy
-                _, max_indices = output.max(dim=2, keepdim=False)
-                num_correct += (max_indices == labels).sum().cpu().item()
-                num_samples += output.shape[0] * output.shape[1]
-
             if rank in [0, torch.device("cpu")]:
                 log__batch_info(
                     batch_idx=batch_idx,
@@ -554,16 +545,7 @@ def train_and_validate(
                     )
 
                 valLoss_perEpoch.append(val_loss)
-
-                # ignore padding tokens
-                labels = torch.where(labels == pad_token_id, -1, labels)
-                # calculate accuracy
-                _, val_max_indices = val_output.max(dim=2, keepdim=False)
-                val_num_correct += (
-                    (val_max_indices == labels).sum().cpu().item()
-                )
                 batch_size = val_output.shape[0]
-                val_num_samples += batch_size * val_output.shape[1]
 
                 if rank in [0, torch.device("cpu")]:
                     log__batch_info(
@@ -588,10 +570,6 @@ def train_and_validate(
                 "optimizer": deepcopy(optimizer.state_dict()),
             }
 
-        # Calculate accuracies for each epoch:
-        train_accs.append(num_correct / num_samples)
-        val_accs.append(val_num_correct / val_num_samples)
-
         if rank in [0, torch.device("cpu")]:
             # log to Weights & Biases
             if wandb_logging:
@@ -599,8 +577,6 @@ def train_and_validate(
                     {
                         "train_loss": train_losses[epoch],
                         "val_loss": val_losses[epoch],
-                        "train_acc": train_accs[epoch],
-                        "val_acc": val_accs[epoch],
                         "epoch": epoch,
                     },
                     step=epoch,
@@ -609,8 +585,7 @@ def train_and_validate(
             logging.info(
                 f"\nEpoch {epoch}: {perf_counter() - t0:.3f} [sec]\t"
                 f"Mean train/val loss: {train_losses[epoch]:.4f}/"
-                f"{val_losses[epoch]:.4f}\tTrain/val acc: "
-                f"{1e2 * train_accs[epoch]:.2f} %/{1e2 * val_accs[epoch]:.2f} %\n"
+                f"{val_losses[epoch]:.4f}\n"
             )
         model.train()
 
@@ -823,47 +798,6 @@ def log_parameter_table(model: nn.Module) -> None:
         table.add_row([name, param])
         total_params += param
     logging.info(f"{table}\nTotal trainable params: {total_params}")
-
-
-def check_accuracy(loader, model, mode, device, pad_token_id, tgt_mask=None):
-    """
-    Check the accuracy of a given model on a given dataset.
-
-    Params:
-        loader (torch.utils.data.DataLoader)        -- The dataloader of the
-            dataset on which we want to check the accuracy.
-        model (torch.nn)                            -- Model for which we want
-            the total number of parameters.
-        mode (str):                                 -- Mode in which the model
-            is in. Either "train" or "test".
-        device (torch.device)                       -- Device on which the code
-            was executed.
-        pad_token_id: ID of the pad token.
-        tgt_mask: Look-ahead mask for the decoder, of shape
-            `(seq_length, seq_length)`, to prevent the decoder from attending
-            to subsequent tokens in the sequence.
-    """
-    assert mode in ["train", "test"]
-
-    model.eval()
-    num_correct = 0
-    num_samples = 0
-
-    with torch.no_grad():
-        for dict in loader:
-            tokens = dict["source"].to(device)  # `[N, seq_length]`
-            labels = dict["target"].to(device)  # `[N, seq_length]`
-            output = model(tokens, labels, tgt_mask)
-            # ignore padding tokens
-            labels = torch.where(labels == pad_token_id, -1, labels)
-            _, max_indices = output.max(dim=2, keepdim=False)
-            num_correct += (max_indices == labels).sum().cpu().item()
-            num_samples += output.shape[0] * output.shape[1]
-
-        logging.info(
-            f"{mode.capitalize()} data: Got {num_correct}/{num_samples} with "
-            f"accuracy {(100 * num_correct / num_samples):.2f} %"
-        )
 
 
 @torch.no_grad()

@@ -51,7 +51,6 @@ For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 [ ] introduce args `tgt_padding_mask` and `src_padding_mask` in forward func of Transformer
 [ ] in `scaled_dot_product_attn()`, refactor signature: `mask` and `padding_mask`. if both are provided, then `torch.min(mask, padding_mask)` should be the `mask` applied.
 [ ] add start token to encoder input as well
-[ ] I think the way the accuracy is calculated is wrong (both in `train_and_validate()` and in `check_accuracy()`). instead of taking `argmax`, `max` might have to be taken.
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing
 [ ] add github action workflows
