@@ -35,7 +35,8 @@ def scaled_dot_product_attn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    mask: Optional[torch.Tensor] = None,
+    attn_mask: Optional[torch.Tensor] = None,
+    padding_mask: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Implement scaled dot-product attention for batched queries, keys and
@@ -49,7 +50,10 @@ def scaled_dot_product_attn(
             (in practice, `seq_length' == seq_length`)
         v: Values in shape `(N, num_heads, seq_length', d_v)`,
             `(N, seq_length', d_v)` or `(seq_length', d_v)`
-        mask: Optional mask for padding.
+        attn_mask: Optional look-ahead mask. All values set to `0` will
+            be excluded for attention calculation.
+        padding_mask: Optional mask for padding. All values set to `1` will
+            be excluded for attention calculation.
 
     Returns:
         Weighted values $softmax(qk^T / sqrt(d_k)) v$ in shape
@@ -69,9 +73,27 @@ def scaled_dot_product_attn(
     # `(N, seq_length, seq_length')` or `(seq_length, seq_length')`
     attn_logits = q @ k.mT / math.sqrt(q.shape[-1])
 
-    # apply mask if provided
-    if mask is not None:
-        attn_logits.masked_fill_(mask == 0, -float("inf"))
+    # apply masks if provided
+    if attn_mask is not None:
+        attn_logits.masked_fill_(attn_mask == 0, -float("inf"))
+
+    if padding_mask is not None:
+        if attn_logits.ndim == 2:
+            assert padding_mask.ndim <= 2, (
+                "For unbatched queries, keys and values, padding mask must be "
+                f"1D of shape {attn_logits.shape[1]} or 2D of shape "
+                f"``(1, {attn_logits.shape[1]})``. Instead, padding mask has "
+                f"shape {padding_mask.shape}"
+            )
+        elif attn_logits.ndim == 3:
+            assert padding_mask.ndim == 2, (
+                "For batched queries, keys and values, padding mask must be "
+                f"2D of shape ({attn_logits.shape[0]}, {attn_logits.shape[2]})"
+                f". Instead, padding mask has shape {padding_mask.shape}."
+            )
+            padding_mask = padding_mask.unsqueeze(1)
+
+        attn_logits.masked_fill_(padding_mask == 1, -float("inf"))
 
     # calculate attention weights
     attn_weights = softmax(attn_logits, dim=-1)
