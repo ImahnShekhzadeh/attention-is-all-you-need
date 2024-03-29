@@ -21,6 +21,7 @@ from utils import (
     generate_text,
     get_dataloaders,
     get_datasets_and_tokenizer,
+    get_subsequent_mask,
     load_checkpoint,
     log_parameter_table,
     retrieve_args,
@@ -171,17 +172,7 @@ def main(
             warmup_steps=args.warmup_steps,
             lr_multiplier=args.lr_multiplier,
         )
-        # define mask in shape `(seq_length, seq_length)` to prevent the
-        # decoder from attending to subsequent tokens, also cf.
-        # https://peterbloem.nl/blog/transformers
-        mask = torch.triu(
-            torch.ones(
-                args.seq_length,
-                args.seq_length,
-                device=rank,
-            ),
-            diagonal=1,
-        )
+        tgt_mask = get_subsequent_mask(size=args.seq_length, rank=rank)
         checkpoint = train_and_validate(
             pad_token_id=pad_token_id,
             start_token_id=start_token_id,
@@ -198,7 +189,7 @@ def main(
             max_norm=args.max_norm,
             world_size=world_size,
             wandb_logging=wandb_logging,
-            tgt_mask=mask,
+            tgt_mask=tgt_mask,
         )
 
         if rank in [0, torch.device("cpu")]:

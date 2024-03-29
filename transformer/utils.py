@@ -386,6 +386,31 @@ def get_dataloaders(
     return train_loader, val_loader, test_loader
 
 
+def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
+    """
+    Define mask to prevent the decoder from attending to subsequent tokens,
+    also cf. https://peterbloem.nl/blog/transformers.
+
+    Args:
+        size: Size of the square mask.
+        rank: Device.
+
+    Returns:
+        Subsequent mask, shape: `(size, size)`.
+    """
+
+    mask = torch.triu(
+        torch.ones(
+            size,
+            size,
+            device=rank,
+        ),
+        diagonal=1,
+    )
+
+    return mask
+
+
 def train_and_validate(
     pad_token_id: int,
     start_token_id: int,
@@ -859,14 +884,17 @@ def generate_text(
                 dtype=torch.float16,
                 enabled=use_amp,
             ):
-                # `[N, decoder_tokens.shape[1], vocab_size]`
+                tgt_mask = get_subsequent_mask(
+                    size=decoder_tokens.shape[1], rank=rank
+                )
+
                 output = model(
                     src_tokens,
                     decoder_tokens,
+                    tgt_mask=tgt_mask,
                     src_key_padding_mask=src_key_padding_mask,
-                )
+                )  # `(N, decoder_tokens.shape[1], vocab_size)`
 
-            # get the generated token IDs
             generated_tokens = output.argmax(dim=2)[:, -1].unsqueeze(dim=1)
 
             # append the generated token IDs to decoder tokens
