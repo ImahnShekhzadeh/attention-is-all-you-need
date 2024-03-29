@@ -476,7 +476,7 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 # `[N, seq_length, vocab_size]`
-                output = model(src_tokens, decoder_tokens, tgt_mask)
+                output = model(src_tokens, decoder_tokens, tgt_mask=tgt_mask)
                 loss = cce_mean(
                     # `[N * seq_length, vocab_size]`
                     output.reshape(-1, output.shape[-1]),
@@ -531,7 +531,9 @@ def train_and_validate(
                     dtype=torch.float16,
                     enabled=use_amp,
                 ):
-                    val_output = model(src_tokens, decoder_tokens, tgt_mask)
+                    val_output = model(
+                        src_tokens, decoder_tokens, tgt_mask=tgt_mask
+                    )
                     val_loss = (
                         cce_mean(
                             # `[N * seq_length, vocab_size]`
