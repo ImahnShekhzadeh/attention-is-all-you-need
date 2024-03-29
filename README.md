@@ -48,10 +48,7 @@ You can either use my pre-trained tokenizer, or provide your own. For the used d
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
-[ ] introduce args `tgt_padding_mask` and `src_padding_mask` in forward func of Transformer
 [ ] add `memory_mask` for MaskedMultiHeadAttn
-[ ] put `DecoderMultiHeadAttention` and `MultiHeadAttention` into one class
-[ ] in `scaled_dot_product_attn()`, refactor signature: `mask` and `padding_mask`. if both are provided, then `torch.min(mask, padding_mask)` should be the `mask` applied.
 [ ] add start token to encoder input as well
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing

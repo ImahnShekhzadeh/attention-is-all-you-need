@@ -47,22 +47,27 @@ class Encoder(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        src_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
-            x: Input tensor of shape `(N, seq_length, input_dim)`
+            x: Input tensor of shape `(N, S, input_dim)`
             mask: Mask for the source sequence, either 2D, 3D or 4D
+            src_key_padding_mask: Mask for source keys, shape: `(N, S)`
 
         Returns:
-            Output tensor of shape `(N, seq_length, input_dim)`
+            Output tensor of shape `(N, S, input_dim)`
         """
         for idx in range(self.num_layers):
             x = self.encoder_blocks[idx](
                 x=x,
                 mask=mask,
+                src_key_padding_mask=src_key_padding_mask,
             )
 
         return x
@@ -134,14 +139,18 @@ class Decoder(nn.Module):
         x: torch.Tensor,
         encoder_output: torch.Tensor,
         mask: torch.Tensor,
+        tgt_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
-            x: Input tensor of shape `(N, seq_length, input_dim)`
+            x: Input tensor of shape `(N, T, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
+            encoder_output: Output tensor from the encoder,
+                shape: `(N, S, input_dim)`
             mask: Mask for the target sequence, either 2D, 3D or 4D
+            tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -153,6 +162,7 @@ class Decoder(nn.Module):
                 x=x,
                 encoder_output=encoder_output,
                 mask=mask,
+                tgt_key_padding_mask=tgt_key_padding_mask,
             )
 
         return x
@@ -234,24 +244,28 @@ class Transformer(nn.Module):
         output_tokens: torch.Tensor,
         src_mask: Optional[torch.Tensor] = None,
         tgt_mask: Optional[torch.Tensor] = None,
+        src_key_padding_mask: Optional[torch.Tensor] = None,
+        tgt_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
 
         Args:
-            input_tokens: Input tokens to encoder ("source" language) in shape
-                `(N, seq_length)`.
-            output_tokens: Input tokens to decoder ("target" language) in shape
-                `(N, seq_length)`.
+            input_tokens: Input tokens to encoder ("source" language),
+                shape: `(N, S)`.
+            output_tokens: Input tokens to decoder ("target" language),
+                shape: `(N, T)`.
             src_mask: Mask for the source sequence, either 2D, 3D or 4D.
             tgt_mask: Mask for the target sequence, either 2D, 3D or 4D.
+            src_key_padding_mask: Mask for source keys, shape: `(N, S)`.
+            tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
         """
 
         # embedding and positional encoding for the encoder,
-        # `(N, seq_length, embed_dim)`
+        # `(N, S, embed_dim)`
         encoder_input = math.sqrt(self.embed_dim) * self.embedding(
             input_tokens
         )
@@ -259,7 +273,7 @@ class Transformer(nn.Module):
         encoder_input = self.dropout(encoder_input)
 
         # embedding and positional encoding for the decoder,
-        # `(N, seq_length, embed_dim)`
+        # `(N, T, embed_dim)`
         decoder_input = math.sqrt(self.embed_dim) * self.embedding(
             output_tokens
         )
@@ -267,8 +281,17 @@ class Transformer(nn.Module):
         decoder_input = self.dropout(decoder_input)
 
         # forward pass through encoder, decoder and linear layer
-        x = self.encoder(encoder_input, mask=src_mask)
-        x = self.decoder(decoder_input, x, mask=tgt_mask)
-        x = self.pre_softmax_linear(x)  # `(N, seq_length, vocab_size)`
+        x = self.encoder(
+            encoder_input,
+            mask=src_mask,
+            src_key_padding_mask=src_key_padding_mask,
+        )
+        x = self.decoder(
+            decoder_input,
+            x,
+            mask=tgt_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+        )
+        x = self.pre_softmax_linear(x)  # `(N, T, vocab_size)`
 
         return x

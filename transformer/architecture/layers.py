@@ -57,24 +57,29 @@ class EncoderBlock(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        src_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
-            x: Input tensor of shape `(N, seq_length, input_dim)`
+            x: Input tensor of shape `(N, S, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
             mask: Mask for the source sequence, either 2D, 3D or 4D
+            src_key_padding_mask: Mask for source keys, shape: `(N, S)`
 
         Returns:
-            Output tensor of shape `(N, seq_length, input_dim)`
+            Output tensor of shape `(N, S, input_dim)`
         """
 
         # multi-head attention part
         out = self.multihead_attn(
             x=x,
             attn_mask=mask,
+            key_padding_mask=src_key_padding_mask,
         )
         out = self.norm_a(self.dropout(out) + x)
 
@@ -151,26 +156,29 @@ class DecoderBlock(nn.Module):
         x: torch.Tensor,
         encoder_output: torch.Tensor,
         mask: torch.Tensor,
+        tgt_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
-            x: Input tensor of shape `(N, seq_length, input_dim)`
+            x: Input tensor of shape `(N, T, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
-            encoder_output: Encoder output in shape
-                `(N, seq_length, embed_dim)` (`embed_dim = d_model` in [1])
+            encoder_output: Encoder output, shape: `(N, S, embed_dim)`
+                (`embed_dim = d_model` in [1])
             mask: Mask for the target sequence, either 2D, 3D or 4D (prevents
-                attending to future)
+                attending to subsequent tokens)
+            tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`
 
         Returns:
-            Output tensor of shape `(N, seq_length, input_dim)`
+            Output tensor of shape `(N, T, input_dim)`
         """
 
         # multi-head attention part
         out_a = self.multihead_attn(
             x=x,
             attn_mask=mask,
+            key_padding_mask=tgt_key_padding_mask,
         )
         out_a = self.norm_a(self.dropout(out_a) + x)
 
