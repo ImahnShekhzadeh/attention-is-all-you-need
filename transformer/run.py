@@ -110,6 +110,7 @@ def main(
         vocab_size=tokenizer.get_vocab_size(),
         seq_length=args.seq_length,
         dim_feedfwd=args.dim_feedfwd,
+        dropout_rate=args.dropout_rate,
     )
     model.to(rank)
     if args.use_ddp:
