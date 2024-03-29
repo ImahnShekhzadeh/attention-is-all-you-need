@@ -139,7 +139,9 @@ class Decoder(nn.Module):
         x: torch.Tensor,
         encoder_output: torch.Tensor,
         mask: torch.Tensor,
+        memory_mask: Optional[torch.Tensor] = None,
         tgt_key_padding_mask: Optional[torch.Tensor] = None,
+        memory_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
@@ -150,7 +152,10 @@ class Decoder(nn.Module):
             encoder_output: Output tensor from the encoder,
                 shape: `(N, S, input_dim)`
             mask: Mask for the target sequence, either 2D, 3D or 4D
+            memory_mask: Mask for the encoder output, either 2D, 3D or 4D
             tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`
+            memory_key_padding_mask: Mask for memory (encoder output) keys,
+                shape: `(N, S)`
 
         Returns:
             Output tensor of shape `(N, seq_length, input_dim)`
@@ -162,7 +167,9 @@ class Decoder(nn.Module):
                 x=x,
                 encoder_output=encoder_output,
                 mask=mask,
+                memory_mask=memory_mask,
                 tgt_key_padding_mask=tgt_key_padding_mask,
+                memory_key_padding_mask=memory_key_padding_mask,
             )
 
         return x
@@ -244,8 +251,10 @@ class Transformer(nn.Module):
         output_tokens: torch.Tensor,
         src_mask: Optional[torch.Tensor] = None,
         tgt_mask: Optional[torch.Tensor] = None,
+        memory_mask: Optional[torch.Tensor] = None,
         src_key_padding_mask: Optional[torch.Tensor] = None,
         tgt_key_padding_mask: Optional[torch.Tensor] = None,
+        memory_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
@@ -257,8 +266,11 @@ class Transformer(nn.Module):
                 shape: `(N, T)`.
             src_mask: Mask for the source sequence, either 2D, 3D or 4D.
             tgt_mask: Mask for the target sequence, either 2D, 3D or 4D.
+            memory_mask: Mask for the encoder output, either 2D, 3D or 4D.
             src_key_padding_mask: Mask for source keys, shape: `(N, S)`.
             tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`.
+            memory_key_padding_mask: Mask for memory (encoder output) keys,
+                shape: `(N, S)`.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
@@ -290,7 +302,9 @@ class Transformer(nn.Module):
             decoder_input,
             x,
             mask=tgt_mask,
+            memory_mask=memory_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
+            memory_key_padding_mask=memory_key_padding_mask,
         )
         x = self.pre_softmax_linear(x)  # `(N, T, vocab_size)`
 

@@ -156,7 +156,9 @@ class DecoderBlock(nn.Module):
         x: torch.Tensor,
         encoder_output: torch.Tensor,
         mask: torch.Tensor,
+        memory_mask: Optional[torch.Tensor] = None,
         tgt_key_padding_mask: Optional[torch.Tensor] = None,
+        memory_key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass.
@@ -168,7 +170,10 @@ class DecoderBlock(nn.Module):
                 (`embed_dim = d_model` in [1])
             mask: Mask for the target sequence, either 2D, 3D or 4D (prevents
                 attending to subsequent tokens)
+            memory_mask: Mask for the encoder output, either 2D, 3D or 4D
             tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`
+            memory_key_padding_mask: Mask for memory (encoder output) keys,
+                shape: `(N, S)`
 
         Returns:
             Output tensor of shape `(N, T, input_dim)`
@@ -187,6 +192,8 @@ class DecoderBlock(nn.Module):
         out_b = self.decoder__multihead_attn(
             x=out_a,
             encoder_output=encoder_output,
+            attn_mask=memory_mask,
+            key_padding_mask=memory_key_padding_mask,
         )
         out_b = self.norm_b(self.dropout(out_b) + out_a)
 
