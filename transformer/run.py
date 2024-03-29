@@ -174,13 +174,13 @@ def main(
         # define mask in shape `(seq_length, seq_length)` to prevent the
         # decoder from attending to subsequent tokens, also cf.
         # https://peterbloem.nl/blog/transformers
-        mask = torch.tril(
+        mask = torch.triu(
             torch.ones(
                 args.seq_length,
                 args.seq_length,
                 device=rank,
             ),
-            diagonal=0,
+            diagonal=1,
         )
         checkpoint = train_and_validate(
             pad_token_id=pad_token_id,

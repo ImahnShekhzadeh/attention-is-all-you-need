@@ -50,7 +50,7 @@ def scaled_dot_product_attn(
             (in practice, `seq_length' == seq_length`)
         v: Values in shape `(N, num_heads, seq_length', d_v)`,
             `(N, seq_length', d_v)` or `(seq_length', d_v)`
-        attn_mask: Optional look-ahead mask. All values set to `0` will
+        attn_mask: Optional look-ahead mask. All values set to `1` will
             be excluded for attention calculation.
         padding_mask: Optional mask for padding. All values set to `1` will
             be excluded for attention calculation.
@@ -75,7 +75,7 @@ def scaled_dot_product_attn(
 
     # apply masks if provided
     if attn_mask is not None:
-        attn_logits.masked_fill_(attn_mask == 0, -float("inf"))
+        attn_logits.masked_fill_(attn_mask == 1, -float("inf"))
 
     if padding_mask is not None:
         if attn_logits.ndim == 2:
