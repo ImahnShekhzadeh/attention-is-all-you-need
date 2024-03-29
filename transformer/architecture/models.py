@@ -1,8 +1,8 @@
 import math
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 
 from .encoding import PositionalEncoding
 from .layers import DecoderBlock, EncoderBlock
