@@ -236,6 +236,7 @@ def main(
             use_amp=args.use_amp,
             test_loader=test_loader,
             start_token_id=start_token_id,
+            pad_token_id=pad_token_id,
             rank=rank,
         )
 
@@ -243,7 +244,7 @@ def main(
         bleu_score = compute__bleu_score(
             test_data=data["test"]["translation"],
             max__n_gram=args.max__n_gram,
-            tokenizer=tokenizer,
+            generated_data=generated_data,
         )
         logging.info(f"BLEU score: {bleu_score}")
 

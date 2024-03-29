@@ -49,7 +49,7 @@ For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
 [ ] add `memory_mask` for MaskedMultiHeadAttn
-[ ] think about which mask to apply to Transformer when generating text
+[ ] when generating text, also add subsequent mask to prevent tokens from attending to future
 [ ] add start token to encoder input as well
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add label smoothing

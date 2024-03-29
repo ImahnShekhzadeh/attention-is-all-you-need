@@ -825,8 +825,9 @@ def generate_text(
     use_amp: bool,
     test_loader: DataLoader,
     start_token_id: int,
+    pad_token_id: int,
     rank: int | torch.device,
-) -> torch.Tensor:
+) -> List:
     """
     Generate text from the model.
 
@@ -845,8 +846,8 @@ def generate_text(
     generated_ids = []
 
     for test_dict in test_loader:
-        # tokens in source language `[N, seq_length]`
-        src_tokens = test_dict["source"].to(rank)
+        src_tokens = test_dict["source"].to(rank)  # `(N, S)`
+        src_key_padding_mask = src_tokens == pad_token_id  # `(N, S)`
 
         decoder_tokens = start_token_id * torch.ones(
             (src_tokens.shape[0], 1), dtype=src_tokens.dtype
@@ -859,7 +860,11 @@ def generate_text(
                 enabled=use_amp,
             ):
                 # `[N, decoder_tokens.shape[1], vocab_size]`
-                output = model(src_tokens, decoder_tokens)
+                output = model(
+                    src_tokens,
+                    decoder_tokens,
+                    src_key_padding_mask=src_key_padding_mask,
+                )
 
             # get the generated token IDs
             generated_tokens = output.argmax(dim=2)[:, -1].unsqueeze(dim=1)
@@ -880,8 +885,7 @@ def generate_text(
 def compute__bleu_score(
     test_data: List[Dict],
     max__n_gram: int,
-    generated__token_ids: torch.Tensor,
-    tokenizer: Tokenizer,
+    generated_data: List,
 ) -> float:
     """
     Compute the BLEU score of the model.
@@ -890,8 +894,7 @@ def compute__bleu_score(
         test_data: List containing test data (strings) for both the source and
             target languages.
         max__n_gram: Maximum n-gram used when calculating BLEU score.
-        generated__token_ids: Generated data containing token IDs.
-        tokenizer: Tokenizer.
+        generated_data: Translated sentences.
 
     Returns:
         BLEU score (between 0 and 1).
@@ -899,7 +902,5 @@ def compute__bleu_score(
     reference_data = []
     for dict in test_data:
         reference_data.append(dict["en"])
-
-    generated_data = tokenizer.decode_batch(generated__token_ids.tolist())
 
     return bleu_score(generated_data, test_data, max__n_gram)
