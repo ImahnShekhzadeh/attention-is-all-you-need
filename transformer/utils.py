@@ -7,14 +7,12 @@ import shutil
 import sys
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
-from datetime import datetime as dt
 from math import ceil
 from time import perf_counter
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import datasets
 import evaluate
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
@@ -26,12 +24,10 @@ from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.trainers import BpeTrainer
 from torch import Tensor, autocast
 from torch import distributed as dist
-from torch import multiprocessing as mp
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
-from torchtext.data.metrics import bleu_score
 
 
 def total_norm__grads(model: nn.Module) -> float:
