@@ -145,8 +145,8 @@ def main(
     optimizer = optim.Adam(
         params=model.parameters(),
         lr=1e-3,  # dummy, will be set by scheduler
-        betas=(0.9, 0.999),
-        eps=1e-08,
+        betas=(args.beta_1, args.beta_2),
+        eps=args.eps,
     )
 
     # Set network to train mode:
