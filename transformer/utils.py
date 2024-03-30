@@ -617,6 +617,8 @@ def train_and_validate(
             checkpoint = {
                 "state_dict": deepcopy(model.state_dict()),
                 "optimizer": deepcopy(optimizer.state_dict()),
+                "val_loss": val_losses[epoch],
+                "epoch": epoch,
             }
 
         if rank in [0, torch.device("cpu")]:
@@ -820,16 +822,27 @@ def load_checkpoint(
     logging.info("=> Checkpoint loaded.")
 
 
-def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+def save_checkpoint(state: Dict, filename: str = "my_checkpoint.pt") -> None:
     """Creates a model checkpoint to save and load a model.
 
     Params:
-        state (dictionary)      -- The state of the model and optimizer in a
-            dictionary.
-        filename (pth.tar)      -- The name of the checkpoint.
+        state: State of model and optimizer in a dictionary.
+        filename: The name of the checkpoint.
     """
+    log_msg = f"\n=> Saving checkpoint '{filename}' "
+    if "val_loss" in state.keys():
+        log_msg += (
+            f"corresponding to a validation loss of {state['val_loss']:.4f} "
+        )
+    if "val_acc" in state.keys():
+        log_msg += (
+            f"and a validation accuracy of {100 * state['val_acc']:.2f} % "
+        )
+    if "epoch" in state.keys():
+        log_msg += f"at epoch {state['epoch']}."
+    logging.info(log_msg)
+
     torch.save(state, filename)
-    logging.info("\n=> Saving checkpoint")
 
 
 def log_parameter_table(model: nn.Module) -> None:
