@@ -13,6 +13,7 @@ from time import perf_counter
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import datasets
+import evaluate
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -930,30 +931,26 @@ def generate_text(
     return generated_text
 
 
-def compute__bleu_score(
-    test_data: List[Dict],
-    max__n_gram: int,
-    generated_data: List,
-) -> float:
+def compute__bleu_score(test_data: List[Dict], generated_data: List) -> Dict:
     """
     Compute the BLEU score of the model.
 
     Args:
         test_data: List containing test data (strings) for both the source and
             target languages.
-        max__n_gram: Maximum n-gram used when calculating BLEU score.
         generated_data: Translated sentences.
 
     Returns:
-        BLEU score (between 0 and 1).
+        Dictionary containing BLEU score, precisions, brevity penalty, length
+        ratio, etc.
     """
     reference_data = []
     for dict in test_data:
         reference_data.append([dict["en"]])
 
-    return bleu_score(
-        generated_data,
-        reference_data,
-        max__n_gram,
-        weights=[1 / max__n_gram for _ in range(max__n_gram)],
+    bleu = evaluate.load("bleu")
+    results = bleu.compute(
+        predictions=generated_data,
+        references=reference_data,
     )
+    return results

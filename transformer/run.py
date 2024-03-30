@@ -230,13 +230,12 @@ def main(
             rank=rank,
         )
 
-        # compute BLEU score
-        bleu_score = compute__bleu_score(
+        # evaluation results
+        results = compute__bleu_score(
             test_data=data["test"]["translation"],
-            max__n_gram=args.max__n_gram,
             generated_data=translated_text,
         )
-        logging.info(f"BLEU score: {bleu_score}")
+        logging.info(f"Results:\n{results}")
 
 
 if __name__ == "__main__":
