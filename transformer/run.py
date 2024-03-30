@@ -220,9 +220,7 @@ def main(
 
         model.eval()
 
-        # TODO: generate text by sampling from the model by first feeding
-        # tensor with [SOS] token
-        generated_data = generate_text(
+        translated_text = generate_text(
             model=model,
             tokenizer=tokenizer,
             use_amp=args.use_amp,
@@ -236,7 +234,7 @@ def main(
         bleu_score = compute__bleu_score(
             test_data=data["test"]["translation"],
             max__n_gram=args.max__n_gram,
-            generated_data=generated_data,
+            generated_data=translated_text,
         )
         logging.info(f"BLEU score: {bleu_score}")
 

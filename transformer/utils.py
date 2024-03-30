@@ -871,7 +871,7 @@ def generate_text(
     start_token_id: int,
     pad_token_id: int,
     rank: int | torch.device,
-) -> List:
+) -> List[List[str]]:
     """
     Generate text from the model.
 
@@ -921,9 +921,10 @@ def generate_text(
                 (decoder_tokens, generated_tokens), dim=1
             )
 
-        generated_ids.extend(decoder_tokens.cpu().tolist())
+        generated_ids.extend(decoder_tokens[:, 1:].cpu().tolist())
 
-    generated_text = tokenizer.decode_batch(generated_ids)
+    generated_text = tokenizer.decode_batch(generated_ids)  # `List[str]`
+    generated_text = [[item] for item in generated_text]  # `List[List[str]]`
     logging.info(f"Generated translations:\n\n{generated_text}")
 
     return generated_text
@@ -948,11 +949,11 @@ def compute__bleu_score(
     """
     reference_data = []
     for dict in test_data:
-        reference_data.append(dict["en"])
+        reference_data.append([dict["en"]])
 
     return bleu_score(
         generated_data,
-        test_data,
+        reference_data,
         max__n_gram,
         weights=[1 / max__n_gram for _ in range(max__n_gram)],
     )
