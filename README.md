@@ -31,6 +31,20 @@ If you want to log some metrics to [Weights & Biases](https://wandb.ai/), append
 # --wandb__api_key 2fru...
 ```
 
+## Positional Encoding
+For an embedding dimension of $48$ and a sequence length of $96$, the following two plots are visualizations of the positional encoding:
+
+<div style="display: flex; justify-content: center;">
+    <img src="visualiz/positional_encoding_all_embedding_dims.png" alt="Description" width="600"/>
+</div>
+<br>
+
+<div style="display: flex; justify-content: center;">
+    <img src="visualiz/positional_encoding_few_embedding_dims.png" alt="Description" width="600"/>
+</div>
+<br>
+
+
 ## Sequence Length
 To justify the chosen sequence length, I wrote a script that - for a given pre-trained tokenizer - plots the frequency of tokens vs their number.
 Run the script as follows,
