@@ -5,23 +5,18 @@ import logging
 import os
 import shutil
 import sys
+import urllib
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from math import ceil
 from time import perf_counter
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-import datasets
-import evaluate
 import numpy as np
 import torch
 import wandb
 from prettytable import PrettyTable
 from scheduler import LRScheduler
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.trainers import BpeTrainer
 from torch import Tensor, autocast
 from torch import distributed as dist
 from torch import nn
@@ -125,15 +120,8 @@ def check_args(args: Namespace) -> None:
         args: Arguments provided by the user.
     """
 
-    # create saving dir if non-existent, check if saving path is empty, and
-    # copy JSON config file there
+    # create saving dir if non-existent
     os.makedirs(args.saving_path, exist_ok=True)
-    if not len(os.listdir(args.saving_path)) == 0:
-        raise ValueError(
-            f"Saving path `{args.saving_path}` is not empty! Please provide "
-            "another path."
-        )
-    shutil.copy(src=args.config, dst=args.saving_path)
 
     assert args.compile_mode in [
         None,
@@ -170,168 +158,86 @@ def check_args(args: Namespace) -> None:
         )
 
 
-def get_bpe_tokenizer(
-    seq_length: int,
-    tokenizer_file: Optional[str] = None,
-    iterator: Union[Iterator, List[str]] = None,
-    vocab_size: Optional[int] = None,
-    min_frequency: Optional[int] = None,
-) -> Tokenizer:
+def get_dataset(
+    train_split: float = 0.8,
+) -> Tuple[Tensor, Tensor, List[str], int]:
     """
-    Get a tokenizer with byte-pair encoding (BPE) according to the
-    instructions in [1]. If a tokenizer path is provided, the tokenizer will be
-    loaded from this path. If no tokenizer is provided, the tokenizer will be
-    trained on the provided files.
+    Get Tiny Shakespeare dataset.
 
     Args:
-        seq_length: Sequence length; if sentence contains less tokens than
-            `seq_length`, it will be padded, otherwise truncated.
-        iterator: Any iterator over strings or list of strings with which the
-            tokenizer is trained [2].
-        files: List of files to train the tokenizer on.
-        vocab_size: Vocabulary size.
-        min_frequency: Minimum frequency a pair must have to produce a merge
-            operation.
-
-    [1] https://huggingface.co/docs/tokenizers/quicktour
-    [2] https://github.com/huggingface/tokenizers/blob/c893204c45d7f2cd66958731dd7779548ca54ad5/bindings/python/py_src/tokenizers/__init__.pyi#L1089
-    """
-    if tokenizer_file is None:
-        assert (
-            iterator is not None
-            and vocab_size is not None
-            and min_frequency is not None
-        ), (
-            "If no tokenizer is provided, the following arguments must be "
-            "provided: `iterator`, `vocab_size`, `min_frequency`."
-        )
-
-        tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
-
-        trainer = BpeTrainer(
-            vocab_size=vocab_size,
-            min_frequency=min_frequency,
-            special_tokens=["[SOS]", "[UNK]", "[PAD]"],
-        )
-
-        tokenizer.pre_tokenizer = Whitespace()
-
-        tokenizer.train_from_iterator(iterator, trainer)
-
-        tokenizer.save(f"bpe_tokenizer_{vocab_size // 1000}k.json")
-    else:
-        assert os.path.exists(
-            tokenizer_file
-        ), "Please provide a valid path to the tokenizer file."
-        assert tokenizer_file.endswith(
-            ".json"
-        ), "If a tokenizer is provided, it must be a JSON file."
-
-        tokenizer = Tokenizer.from_file(tokenizer_file)
-        logging.info(
-            f"=> Tokenizer `{tokenizer_file}` with a vocabulary size of "
-            f"{tokenizer.get_vocab_size()} loaded."
-        )
-
-    # enable padding and truncation.
-    pad_token = "[PAD]"
-    tokenizer.enable_padding(
-        pad_id=tokenizer.token_to_id(pad_token),
-        pad_token=pad_token,
-        length=seq_length,
-        direction="right",
-    )
-    tokenizer.enable_truncation(
-        max_length=seq_length,
-    )
-
-    return tokenizer
-
-
-def get_datasets_and_tokenizer(
-    data: datasets.dataset_dict.DatasetDict,
-    seq_length: int,
-    tokenizer_file: str = "bpe_tokenizer_30k.json",
-    vocab_size: Optional[int] = None,
-    min_frequency: Optional[int] = None,
-) -> Tuple[Dict[str, Tensor], Dict[str, Tensor], Dict[str, Tensor], Tokenizer]:
-    """
-    Get the train, val and test datasets of the IWSLT 2017 DE-EN dataset.
-
-    Args:
-        data: Datasets (train, val, test).
-        seq_length: Sequence length; if sentence contains less tokens than
-            `seq_length`, it will be padded, otherwise truncated.
-        tokenizer_file: Path to the tokenizer file.
-        vocab_size: Vocabulary size.
-        min_frequency: Minimum frequency a pair must have to produce a merge
-            operation.
+        train_split: Fraction of the dataset to use for training.
 
     Returns:
-        Dictionary containing the tokenized texts for the train, val and test
-            split for both German and English and the tokenizer used for the
-            encoding.
+        Text dataset, vocabulary and its size.
     """
 
-    # load tokenizer from file path or train from scratch
-    tokenizer_args = {
-        "seq_length": seq_length,
-    }
+    assert (
+        0 < train_split < 1
+    ), f"Train split should be > 0 and < 1, but is instead {train_split}"
 
-    if tokenizer_file is None:
-        all_sentences = []
+    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 
-        for split in data.keys():
-            for i in range(len(data[split])):
-                all_sentences.extend(data[split]["translation"][i].values())
+    # https://stackoverflow.com/a/7244263
+    with urllib.request.urlopen(url) as response, open(
+        "input.txt", "wb"
+    ) as out_file:
+        shutil.copyfileobj(response, out_file)
 
-        # save list to numpy
-        np.save("transformer/all_sentences.npy", all_sentences)
+    with open("input.txt", "r") as f:
+        text = f.read()
 
-        tokenizer = get_bpe_tokenizer(
-            **tokenizer_args
-            | {
-                "vocab_size": vocab_size,
-                "min_frequency": min_frequency,
-                "iterator": all_sentences,
-            },
-        )
-    else:
-        tokenizer = get_bpe_tokenizer(
-            **tokenizer_args | {"tokenizer_file": tokenizer_file}
-        )
+    logging.info(f"Length of dataset in characters: {len(text)}")
+    logging.info(f"First 100 characters of dataset: {text[:100]}")
 
-    def tokenize_text(batch: List[Dict]) -> Dict[str, Tensor]:
-        """
-        Tokenize test corresponding to train, validation or test splits.
-        This function is specifically written for the IWSLT 2017 dataset.
+    # get vocabulary and its size
+    vocab = sorted(list(set(text)))
+    vocab_size = len(vocab)
+    logging.info(
+        f"Vocabulary size: {vocab_size}\nVocabulary: {' '.join(vocab)}"
+    )
 
-        Args:
-            batch: List of dictionaries containing the text to tokenize.
-                Dictionary contains keys "de" and "en" for German and English
-                translations respectively.
+    # tokenize the text
+    data = torch.tensor(encode(text, vocab=vocab), dtype=torch.long)
+    logging.info(
+        f"Encoded text: {data}\nShape: {data.shape}, dtype: {data.dtype}"
+    )
 
-        Returns:
-            Dictionary containing the tokenized text for both German and
-            English translations.
-        """
+    # make train-val split
+    num_train_examples = int(train_split * len(data))
+    train_data = data[:num_train_examples]
+    val_data = data[num_train_examples:]
 
-        src_ids, target_ids = [], []
+    return train_data, val_data, vocab, vocab_size
 
-        for dict in batch:
-            src_ids.append(tokenizer.encode(dict["de"]).ids)
-            target_ids.append(tokenizer.encode(dict["en"]).ids)
 
-        return {
-            "src_ids": torch.tensor(src_ids, dtype=torch.long),
-            "target_ids": torch.tensor(target_ids, dtype=torch.long),
-        }
+def encode(text: str, vocab: List[str]) -> List[int]:
+    """
+    Encode the text.
 
-    train__dict_ids = tokenize_text(data["train"]["translation"])
-    val__dict_ids = tokenize_text(data["validation"]["translation"])
-    test__dict_ids = tokenize_text(data["test"]["translation"])
+    Args:
+        text: Text to encode.
+        vocab: Vocabulary.
 
-    return train__dict_ids, val__dict_ids, test__dict_ids, tokenizer
+    Returns:
+        Encoded text.
+    """
+    string_to_int = {char: idx for (idx, char) in enumerate(vocab)}
+    return [string_to_int[char] for char in text]
+
+
+def decode(tokens: List[int], vocab: List[str]) -> List[str]:
+    """
+    Decode the text.
+
+    Args:
+        text: Text to decode.
+        vocab: Vocabulary.
+
+    Returns:
+        Decoded text.
+    """
+    int_to_string = {idx: char for (idx, char) in enumerate(vocab)}
+    return "".join([int_to_string[idx] for idx in tokens])
 
 
 def get_dataloaders(
@@ -862,7 +768,6 @@ def log_parameter_table(model: nn.Module) -> None:
 @torch.no_grad()
 def generate_text(
     model: nn.Module,
-    tokenizer: Tokenizer,
     use_amp: bool,
     test_loader: DataLoader,
     start_token_id: int,

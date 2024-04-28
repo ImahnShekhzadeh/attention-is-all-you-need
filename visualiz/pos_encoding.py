@@ -1,8 +1,8 @@
 import math
 
 import torch
-from torch import nn
 from matplotlib import pyplot as plt
+from torch import nn
 
 
 class PositionalEncoding(nn.Module):
@@ -71,7 +71,9 @@ class PositionalEncoding(nn.Module):
 
 if __name__ == "__main__":
     encoder_class = PositionalEncoding(max__seq_length=96, embed_dim=48)
-    pos_encod = encoder_class.pos_encod.squeeze().T  # transpose because of `.imshow`
+    pos_encod = (
+        encoder_class.pos_encod.squeeze().T
+    )  # transpose because of `.imshow`
     print(f"{pos_encod.shape}")
 
     plt.imshow(pos_encod, cmap="RdGy")
@@ -86,8 +88,11 @@ if __name__ == "__main__":
     )
     plt.close()
 
-    fig, axs = plt.subplots(nrows=3, ncols=2,)
-    for (idx, ax) in enumerate(axs.flat):
+    fig, axs = plt.subplots(
+        nrows=3,
+        ncols=2,
+    )
+    for idx, ax in enumerate(axs.flat):
         ax.plot(pos_encod[idx])
         ax.set_title(f"Embedding dim: {idx}")
         ax.set_xlabel("Token position")

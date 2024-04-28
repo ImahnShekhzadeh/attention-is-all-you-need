@@ -10,7 +10,6 @@ from datetime import datetime as dt
 import torch
 import wandb
 from dataset import DictDataset
-from datasets import load_dataset
 from scheduler import LRScheduler
 from torch import multiprocessing as mp
 from torch import optim
@@ -18,9 +17,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import (
     cleanup,
     compute__bleu_score,
+    decode,
+    encode,
     generate_text,
     get_dataloaders,
-    get_datasets_and_tokenizer,
+    get_dataset,
     get_subsequent_mask,
     load_checkpoint,
     log_parameter_table,
@@ -57,23 +58,9 @@ def main(
             world_size=world_size,
         )
 
-    # type: `datasets.dataset_dict.DatasetDict`
-    data = load_dataset("iwslt2017", "iwslt2017-de-en")
-
-    # get ids stored in dict (both for the source and target) for train, val
-    # and test datasets, as well as the tokenizer
-    (
-        train__dict_ids,
-        val__dict_ids,
-        test__dict_ids,
-        tokenizer,
-    ) = get_datasets_and_tokenizer(
-        data=data,
-        seq_length=args.seq_length,
-        tokenizer_file=args.tokenizer_file,
-        vocab_size=args.vocab_size,
-        min_frequency=args.min_frequency,
-    )
+    # get dataset
+    train_data, val_data, vocab, vocab_size = get_dataset()
+    sys.exit()
 
     # convert to datasets
     train_set, val_set, test_set = (
