@@ -240,55 +240,6 @@ def decode(tokens: List[int], vocab: List[str]) -> List[str]:
     return "".join([int_to_string[idx] for idx in tokens])
 
 
-def get_dataloaders(
-    train_dataset: IterableDataset,
-    val_dataset: IterableDataset,
-    test_dataset: IterableDataset,
-    batch_size: int,
-    num_workers: int,
-    pin_memory: bool,
-    use_ddp: bool = False,
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    """
-    Get the dataloaders for the train, validation and test set.
-
-    Args:
-        train_dataset: Training set.
-        val_dataset: Validation set.
-        test_dataset: Test set.
-        batch_size: Batch size.
-        num_workers: Number of subprocesses used in the dataloaders.
-        pin_memory: Whether tensors are copied into CUDA pinned memory.
-        use_ddp: Whether to use DDP.
-
-    Returns:
-        Train, val and test loader
-    """
-
-    loader_kwargs = {
-        "batch_size": batch_size,
-        "shuffle": False if use_ddp else True,
-        "num_workers": num_workers,
-        "pin_memory": pin_memory,
-    }
-    train_loader = DataLoader(
-        dataset=train_dataset,
-        sampler=DistributedSampler(train_dataset) if use_ddp else None,
-        **loader_kwargs,
-    )
-    val_loader = DataLoader(
-        dataset=val_dataset,
-        sampler=DistributedSampler(val_dataset) if use_ddp else None,
-        **loader_kwargs,
-    )
-    test_loader = DataLoader(
-        dataset=test_dataset,
-        **loader_kwargs,
-    )
-
-    return train_loader, val_loader, test_loader
-
-
 def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
     """
     Define mask to prevent the decoder from attending to subsequent tokens,
