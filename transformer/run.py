@@ -20,6 +20,7 @@ from utils import (
     decode,
     encode,
     generate_text,
+    get_batch,
     get_dataset,
     get_subsequent_mask,
     load_checkpoint,

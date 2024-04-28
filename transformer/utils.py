@@ -252,9 +252,20 @@ def get_batch(
         batch_size: int
 
     Returns:
-        Batch.
+        Batch of input and target tensors.
     """
-    pass
+    indices = torch.randint(
+        low=0, high=len(data) - block_size, size=(batch_size,)
+    )
+
+    input = torch.stack(
+        [data[idx : idx + block_size] for idx in indices], dim=0
+    )
+    target = torch.stack(
+        [data[idx + 1 : idx + block_size + 1] for idx in indices], dim=0
+    )
+
+    return input, target
 
 
 def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
