@@ -185,6 +185,7 @@ def get_dataset(
 
     with open("input.txt", "r") as f:
         text = f.read()
+    os.remove("input.txt")
 
     logging.info(f"Length of dataset in characters: {len(text)}")
     logging.info(f"First 100 characters of dataset: {text[:100]}")
@@ -238,6 +239,22 @@ def decode(tokens: List[int], vocab: List[str]) -> List[str]:
     """
     int_to_string = {idx: char for (idx, char) in enumerate(vocab)}
     return "".join([int_to_string[idx] for idx in tokens])
+
+
+def get_batch(
+    data: Tensor, batch_size: int, block_size: int
+) -> Tuple[Tensor, Tensor]:
+    """
+    Get batch of data.
+
+    Args:
+        data: Train or validation data.
+        batch_size: int
+
+    Returns:
+        Batch.
+    """
+    pass
 
 
 def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
