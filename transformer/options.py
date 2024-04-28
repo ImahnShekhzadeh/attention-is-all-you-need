@@ -194,13 +194,10 @@ def get_parser() -> argparse.ArgumentParser:
         help="Number of heads for the multi-head attention.",
     )
     parser.add_argument(
-        "--seq_length",
+        "--block_size",
         type=int,
         default=512,
-        help=(
-            "Sequence length; if sentence contains less tokens than "
-            "`seq_length`, it will be padded, otherwise truncated."
-        ),
+        help="Maximum context length for predictions",
     )
     parser.add_argument(
         "--tokenizer_file",
