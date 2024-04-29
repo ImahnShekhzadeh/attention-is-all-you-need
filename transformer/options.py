@@ -97,7 +97,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--train",
         action="store_true",
         help=(
-            "Whether to train the model for `num_epochs` epochs, or whether "
+            "Whether to train the model for `num_steps` steps, or whether "
             "to do evaluation only."
         ),
     )
@@ -108,10 +108,10 @@ def get_parser() -> argparse.ArgumentParser:
         help="Number of warmup steps for which the LR increases.",
     )
     parser.add_argument(
-        "--num_epochs",
+        "--num_steps",
         type=int,
         default=10,
-        help="Number of epochs used for training of the NN.",
+        help="Number of steps used for training of the NN.",
     )
     parser.add_argument(
         "--batch_size",
@@ -125,7 +125,7 @@ def get_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Path to a checkpoint to be loaded, which is then trained for "
-            "`args.num_epochs` epochs.",
+            "`args.num_steps` steps.",
         ),
     )
     parser.add_argument(
@@ -150,10 +150,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--dim_feedfwd",
         type=int,
         default=2048,
-        help=(
-            "Hidden dimension when applying two-layer MLP in encoder and "
-            "decoder blocks."
-        ),
+        help="Hidden dimension when applying two-layer MLP in decoder blocks.",
     )
     parser.add_argument(
         "--dropout_rate",
@@ -180,12 +177,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         default=6,
         help="Number of times to stack the decoder block.",
-    )
-    parser.add_argument(
-        "--num__encoder_layers",
-        type=int,
-        default=6,
-        help="Number of times to stack the encoder block.",
     )
     parser.add_argument(
         "--num_heads",

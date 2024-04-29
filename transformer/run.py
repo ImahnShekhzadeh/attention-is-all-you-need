@@ -9,7 +9,6 @@ from datetime import datetime as dt
 
 import torch
 import wandb
-from dataset import DictDataset
 from scheduler import LRScheduler
 from torch import multiprocessing as mp
 from torch import optim
@@ -17,12 +16,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import (
     cleanup,
     compute__bleu_score,
-    decode,
-    encode,
     generate_text,
-    get_batch,
     get_dataset,
-    get_subsequent_mask,
     load_checkpoint,
     log_parameter_table,
     retrieve_args,
@@ -59,42 +54,14 @@ def main(
         )
 
     # get dataset
-    train_data, val_data, vocab, vocab_size = get_dataset()
-    sys.exit()
-
-    # convert to datasets
-    train_set, val_set, test_set = (
-        DictDataset(train__dict_ids),
-        DictDataset(val__dict_ids),
-        DictDataset(test__dict_ids),
-    )
-
-    # get dataloaders
-    train_loader, val_loader, test_loader = get_dataloaders(
-        train_dataset=train_set,
-        val_dataset=val_set,
-        test_dataset=test_set,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        pin_memory=args.pin_memory,
-        use_ddp=args.use_ddp,
-    )
-
-    # get start and pad token IDs
-    start_token_id = tokenizer.token_to_id("[SOS]")
-    pad_token_id = tokenizer.token_to_id("[PAD]")
-    assert pad_token_id is not None and start_token_id is not None, (
-        "Start or pad token ID not found. Please use another tokenizer or "
-        "train tokenizer first."
-    )
+    train_data, val_data, vocab_size = get_dataset()
 
     # define transformer
     model = Transformer(
-        num__encoder_layers=args.num__encoder_layers,
         num__decoder_layers=args.num__decoder_layers,
         embedding_dim=args.embedding_dim,
         num_heads=args.num_heads,
-        vocab_size=tokenizer.get_vocab_size(),
+        vocab_size=vocab_size,
         seq_length=args.seq_length,
         dim_feedfwd=args.dim_feedfwd,
         dropout_rate=args.dropout_rate,
@@ -114,11 +81,6 @@ def main(
                 config=args,
             )
 
-        logging.info(
-            f"Pad token ID: {pad_token_id}\n# Train:val:test sentences: "
-            f"{len(train_loader.dataset)}:{len(val_loader.dataset)}"
-            f":{len(test_loader.dataset)}\n"
-        )
         log_parameter_table(model)
     else:
         wandb_logging = False
@@ -160,24 +122,17 @@ def main(
             warmup_steps=args.warmup_steps,
             lr_multiplier=args.lr_multiplier,
         )
-        tgt_mask = get_subsequent_mask(size=args.seq_length, rank=rank)
         checkpoint = train_and_validate(
-            pad_token_id=pad_token_id,
-            start_token_id=start_token_id,
             model=model,
             optimizer=optimizer,
-            num_epochs=args.num_epochs,
+            num_steps=args.num_steps,
             rank=rank,
             use_amp=args.use_amp,
-            train_loader=train_loader,
-            val_loader=val_loader,
             lr_scheduler=lr_scheduler,
             freq_output__train=args.freq_output__train,
             freq_output__val=args.freq_output__val,
             max_norm=args.max_norm,
-            world_size=world_size,
             wandb_logging=wandb_logging,
-            tgt_mask=tgt_mask,
         )
 
         if rank in [0, torch.device("cpu")]:

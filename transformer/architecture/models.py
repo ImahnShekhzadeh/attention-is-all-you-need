@@ -130,35 +130,29 @@ class Transformer(nn.Module):
 
     def forward(
         self,
-        tokens: torch.Tensor,
+        input: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
 
         Args:
-            output_tokens: Input tokens to decoder ("target" language),
-                shape: `(N, T)`.
-            src_mask: Mask for the source sequence, either 2D, 3D or 4D.
-            tgt_mask: Mask for the target sequence, either 2D, 3D or 4D.
-            memory_mask: Mask for the encoder output, either 2D, 3D or 4D.
-            src_key_padding_mask: Mask for source keys, shape: `(N, S)`.
-            tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`.
-            memory_key_padding_mask: Mask for memory (encoder output) keys,
-                shape: `(N, S)`.
+            input: Input tokens to decoder , shape: `(N, block_size)`.
+            mask: Mask in shape `(block_size, block_size)`, prevent attending
+                to subsequent tokens.
 
         Returns:
             Output tensor of shape `(N, seq_length, vocab_size)`.
         """
 
         # embedding and positional encoding for the decoder,
-        # `(N, T, embed_dim)`
-        decoder_input = math.sqrt(self.embed_dim) * self.embedding(tokens)
-        decoder_input = self.pos_encod(decoder_input)
-        decoder_input = self.dropout(decoder_input)
+        # `(N, block_size, embed_dim)`
+        input = math.sqrt(self.embed_dim) * self.embedding(input)
+        input = self.pos_encod(input)
+        input = self.dropout(input)
 
         # forward pass through decoder and linear layer
-        x = self.decoder(decoder_input, x, mask=mask)
-        x = self.pre_softmax_linear(x)  # `(N, T, vocab_size)`
+        x = self.decoder(input, x, mask=mask)
+        x = self.pre_softmax_linear(x)  # `(N, block_size, vocab_size)`
 
         return x

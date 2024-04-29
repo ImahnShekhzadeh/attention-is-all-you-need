@@ -144,12 +144,12 @@ def check_args(args: Namespace) -> None:
     )
     if args.train:
         assert (
-            args.num_epochs > 0
+            args.num_steps > 0
         ), "Number of epochs should be greater than 0 when training."
     else:
-        if args.num_epochs > 0:
+        if args.num_steps > 0:
             logging.warning(
-                "`--train` flag not set, but `--num_epochs > 0` is provided."
+                "`--train` flag not set, but `--num_steps > 0` is provided."
                 "Training will NOT be performed."
             )
         assert args.loading_path is not None, (
@@ -158,9 +158,7 @@ def check_args(args: Namespace) -> None:
         )
 
 
-def get_dataset(
-    train_split: float = 0.8,
-) -> Tuple[Tensor, Tensor, List[str], int]:
+def get_dataset(train_split: float = 0.8) -> Tuple[Tensor, Tensor, int]:
     """
     Get Tiny Shakespeare dataset.
 
@@ -168,7 +166,7 @@ def get_dataset(
         train_split: Fraction of the dataset to use for training.
 
     Returns:
-        Text dataset, vocabulary and its size.
+        Text datasets (train and val splits) and vocabulary size.
     """
 
     assert (
@@ -208,7 +206,7 @@ def get_dataset(
     train_data = data[:num_train_examples]
     val_data = data[num_train_examples:]
 
-    return train_data, val_data, vocab, vocab_size
+    return train_data, val_data, vocab_size
 
 
 def encode(text: str, vocab: List[str]) -> List[int]:
@@ -242,17 +240,23 @@ def decode(tokens: List[int], vocab: List[str]) -> List[str]:
 
 
 def get_batch(
-    data: Tensor, batch_size: int, block_size: int
+    data: Tensor,
+    batch_size: int,
+    block_size: int,
+    device: torch.device | str | int = "cpu",
 ) -> Tuple[Tensor, Tensor]:
     """
     Get batch of data.
 
     Args:
         data: Train or validation data.
-        batch_size: int
+        batch_size: Batch size.
+        block_size: Maximum context length.
+        device: Device on which the code is executed.
 
     Returns:
-        Batch of input and target tensors.
+        Batch of input in shape `(N, block_size)` and target tensors in shape
+        `(N, block_size)`.
     """
     indices = torch.randint(
         low=0, high=len(data) - block_size, size=(batch_size,)
@@ -265,7 +269,7 @@ def get_batch(
         [data[idx + 1 : idx + block_size + 1] for idx in indices], dim=0
     )
 
-    return input, target
+    return input.to(device), target.to(device)
 
 
 def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
@@ -281,7 +285,7 @@ def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
         Subsequent mask, shape: `(size, size)`.
     """
 
-    mask = torch.triu(
+    mask = torch.tril(
         torch.ones(
             size,
             size,
@@ -294,34 +298,30 @@ def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
 
 
 def train_and_validate(
-    pad_token_id: int,
-    start_token_id: int,
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
-    num_epochs: int,
+    num_steps: int,
+    train_data: Tensor,
+    val_data: Tensor,
+    block_size: int,
     rank: int | torch.device,
     use_amp: bool,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
     lr_scheduler: Optional[LRScheduler] = None,
     freq_output__train: Optional[int] = 10,
     freq_output__val: Optional[int] = 10,
     max_norm: Optional[float] = None,
-    world_size: Optional[int] = None,
     wandb_logging: bool = False,
-    tgt_mask: Optional[torch.Tensor] = None,
 ) -> Dict[torch.Tensor, torch.Tensor]:
     """
-    Train and validate the model. For the memory key padding mask of the
-    transformer, the padding mask of the source sequence is taken, as done
-    in [1].
+    Train and validate the model.
 
     Args:
-        pad_token_id: ID of the pad token `[PAD]`.
-        start_token_id: ID of the start token `[SOS]`.
         model: Model to train.
         optimizer: Optimizer to use.
-        num_epochs: Number of epochs to train the model.
+        num_steps: Number of iterations to train.
+        train_data: Training data.
+        val_data: Validation data.
+        block_size: Maximum context length.
         rank: Device on which the code is executed.
         use_amp: Whether to use automatic mixed precision.
         train_loader: Dataloader for the training set.
@@ -333,161 +333,112 @@ def train_and_validate(
         world_size: Number of processes participating in the job. Used to get
             the number of iterations correctly in a DDP setup.
         wandb_logging: API key for Weights & Biases.
-        tgt_mask: Look-ahead mask for the decoder, of shape
-            `(seq_length, seq_length)`, to prevent the decoder from attending
-             to subsequent tokens in the sequence.
 
     Returns:
         checkpoint: Checkpoint of the model.
-
-    [1] https://pytorch.org/tutorials/beginner/translation_transformer.html
     """
 
     # loss function:
-    cce_mean = nn.CrossEntropyLoss(reduction="mean", ignore_index=pad_token_id)
+    cce_mean = nn.CrossEntropyLoss(reduction="mean")
 
-    start_time = start_timer(device=rank)
+    # auxiliary variables:
     train_losses, val_losses = [], []
     min_val_loss = float("inf")
 
+    # for automatic mixed precision (AMP):
     scaler = GradScaler(enabled=use_amp)
 
-    for epoch in range(num_epochs):
-        t0 = start_timer(device=rank)
-        trainingLoss_perEpoch, valLoss_perEpoch = [], []
+    # start timing:
+    start_time = start_timer(device=rank)
 
-        for batch_idx, dict in enumerate(train_loader):
-            model.train()
+    for step in range(num_steps):
+        model.train()
 
-            src_tokens = dict["source"].to(rank)  # `(N, S)`
-            src_key_padding_mask = src_tokens == pad_token_id  # `(N, S)`
-            target_tokens = torch.cat(
-                (
-                    start_token_id
-                    * torch.ones(
-                        (src_tokens.shape[0], 1), dtype=src_tokens.dtype
-                    ),
-                    dict["target"],
-                ),
-                dim=1,
-            ).to(
-                rank
-            )  # `(N, T + 1)`
-            decoder_tokens = target_tokens[
-                :, :-1
-            ]  # input to decoder, `(N, T)`
-            labels = target_tokens[:, 1:]  # `(N, T)`
-            tgt_key_padding_mask = decoder_tokens == pad_token_id  # `(N, T)`
+        X, Y = get_batch(
+            data=train_data,
+            batch_size=batch_size,
+            block_size=block_size,
+            device=rank,
+        )  # X: `[N, block_size]`, Y: `[N, block_size]`
+        mask = get_subsequent_mask(size=X.shape[1], rank=rank)
 
-            optimizer.zero_grad()
-            if lr_scheduler is not None:
-                lr_scheduler.step()
+        optimizer.zero_grad()
+        if lr_scheduler is not None:
+            lr_scheduler.step()
 
-            with autocast(
-                device_type=src_tokens.device.type,
-                dtype=torch.float16,
-                enabled=use_amp,
-            ):
-                # `[N, seq_length, vocab_size]`
-                output = model(
-                    src_tokens,
-                    decoder_tokens,
-                    tgt_mask=tgt_mask,
-                    src_key_padding_mask=src_key_padding_mask,
-                    tgt_key_padding_mask=tgt_key_padding_mask,
-                    memory_key_padding_mask=src_key_padding_mask,
-                )
-                loss = cce_mean(
-                    # `[N * seq_length, vocab_size]`
-                    output.reshape(-1, output.shape[-1]),
-                    # `[N * seq_length]`
-                    labels.reshape(-1),
-                )
-
-            scaler.scale(loss).backward()
-            if max_norm is not None:
-                scaler.unscale_(optimizer)
-                for param_group in optimizer.param_groups:
-                    clip_grad_norm_(param_group["params"], max_norm=max_norm)
-            scaler.step(optimizer)
-            scaler.update()
-
-            trainingLoss_perEpoch.append(
-                loss.cpu().item() * src_tokens.shape[0]
+        with autocast(
+            device_type=X.device.type,
+            dtype=torch.float16,
+            enabled=use_amp,
+        ):
+            # `[N, block_size, vocab_size]`
+            output = model(tokens=X, mask=mask)
+            loss = cce_mean(
+                output.reshape(-1, output.shape[-1]), Y.reshape(-1)
             )
 
-            if rank in [0, torch.device("cpu")]:
-                log__batch_info(
-                    batch_idx=batch_idx,
-                    loader=train_loader,
-                    epoch=epoch,
-                    loss=loss,
+        scaler.scale(loss).backward()
+        if max_norm is not None:
+            scaler.unscale_(optimizer)
+            for param_group in optimizer.param_groups:
+                clip_grad_norm_(param_group["params"], max_norm=max_norm)
+        scaler.step(optimizer)
+        scaler.update()
+
+        train_losses.append(loss.cpu().item())
+
+        if rank in [0, torch.device("cpu")]:
+            logging.info(
+                format_line(
                     mode="train",
-                    frequency=freq_output__train,
+                    epoch=step,
+                    current_samples=step,
+                    total_samples=num_steps,
+                    percentage=100 * step / num_steps,
+                    loss=loss,
                 )
+            )
 
         # validation stuff:
         model.eval()
         with torch.no_grad():
-            for val_batch_idx, val_dict in enumerate(val_loader):
-                src_tokens = val_dict["source"].to(rank)
-                src_key_padding_mask = src_tokens == pad_token_id
-                target_tokens = torch.cat(
-                    (
-                        start_token_id
-                        * torch.ones(
-                            (src_tokens.shape[0], 1), dtype=src_tokens.dtype
-                        ),
-                        val_dict["target"],
-                    ),
-                    dim=1,
-                ).to(rank)
-                decoder_tokens = target_tokens[
-                    :, :-1
-                ]  # input to decoder, `(N, T)`
-                tgt_key_padding_mask = (
-                    decoder_tokens == pad_token_id
-                )  # `(N, T)`
-                labels = target_tokens[:, 1:]  # `(N, T)`
+            X, Y = get_batch(
+                data=val_data,
+                batch_size=batch_size,
+                block_size=block_size,
+                device=rank,
+            )
+            mask = get_subsequent_mask(size=X.shape[1], rank=rank)
 
-                with autocast(
-                    device_type=src_tokens.device.type,
-                    dtype=torch.float16,
-                    enabled=use_amp,
-                ):
-                    val_output = model(
-                        src_tokens,
-                        decoder_tokens,
-                        tgt_mask=tgt_mask,
-                        src_key_padding_mask=src_key_padding_mask,
-                        tgt_key_padding_mask=tgt_key_padding_mask,
-                        memory_key_padding_mask=src_key_padding_mask,
+            with autocast(
+                device_type=X.device.type,
+                dtype=torch.float16,
+                enabled=use_amp,
+            ):
+                val_output = model(tokens=X, mask=mask)
+                val_loss = (
+                    cce_mean(
+                        val_output.reshape(-1, val_output.shape[-1]),
+                        Y.reshape(-1),
                     )
-                    val_loss = (
-                        cce_mean(
-                            # `[N * seq_length, vocab_size]`
-                            val_output.reshape(-1, val_output.shape[-1]),
-                            # `[N * seq_length]`
-                            labels.reshape(-1),
-                        )
-                        .cpu()
-                        .item()
-                        * src_tokens.shape[0]
-                    )
+                    .cpu()
+                    .item()
+                )
 
-                valLoss_perEpoch.append(val_loss)
-                batch_size = val_output.shape[0]
+            val_loss.append(val_loss)
+            batch_size = val_output.shape[0]
 
-                if rank in [0, torch.device("cpu")]:
-                    log__batch_info(
-                        batch_idx=val_batch_idx,
-                        loader=val_loader,
-                        epoch=epoch,
-                        loss=val_loss / batch_size,
-                        mode="val",
-                        frequency=freq_output__val,
-                    )
+            if rank in [0, torch.device("cpu")]:
+                format_line(
+                    mode="val",
+                    epoch=step,
+                    current_samples=step,
+                    total_samples=num_steps,
+                    percentage=100 * step / num_steps,
+                    loss=val_loss,
+                )
 
+        """
         train_losses.append(
             np.sum(trainingLoss_perEpoch, axis=0) / len(train_loader.dataset)
         )
@@ -502,47 +453,34 @@ def train_and_validate(
                 "val_loss": val_losses[epoch],
                 "epoch": epoch,
             }
+        """
 
         if rank in [0, torch.device("cpu")]:
             # log to Weights & Biases
             if wandb_logging:
                 wandb.log(
                     {
-                        "train_loss": train_losses[epoch],
-                        "val_loss": val_losses[epoch],
-                        "epoch": epoch,
+                        "train_loss": train_losses[step],
+                        "val_loss": val_losses[step],
+                        "step": step,
                     },
-                    step=epoch,
+                    step=step,
                 )
 
+            """
             logging.info(
                 f"\nEpoch {epoch}: {perf_counter() - t0:.3f} [sec]\t"
                 f"Mean train/val loss: {train_losses[epoch]:.4f}/"
                 f"{val_losses[epoch]:.4f}\n"
             )
+            """
         model.train()
-
-    if world_size is not None:
-        num_iters = (
-            ceil(
-                len(train_loader.dataset)
-                / (world_size * train_loader.batch_size)
-            )
-            * num_epochs
-        )
-    else:
-        num_iters = (
-            ceil(len(train_loader.dataset) / train_loader.batch_size)
-            * num_epochs
-        )
 
     if rank in [0, torch.device("cpu")]:
         end_timer_and_log(
             start_time=start_time,
             device=rank,
-            local_msg=(
-                f"Training {num_epochs} epochs ({num_iters} iterations)"
-            ),
+            local_msg=f"Training {num_steps} steps",
         )
 
     return checkpoint
@@ -632,7 +570,7 @@ def format_line(
     max_sample_info_width = len(f"[{total_samples} / {total_samples} (100 %)]")
 
     # format each part
-    epoch_str = f"{mode.capitalize()} epoch: {epoch}".ljust(max_epoch_width)
+    epoch_str = f"{mode.capitalize()} step: {epoch}".ljust(max_epoch_width)
     padded__current_sample = str(current_samples).zfill(
         len(str(total_samples))
     )
@@ -642,48 +580,6 @@ def format_line(
     loss_str = f"Loss: {loss:.4f}"
 
     return f"{epoch_str}  {sample_info_str}  {loss_str}"
-
-
-def log__batch_info(
-    mode: str,
-    batch_idx: int,
-    loader: DataLoader,
-    epoch: int,
-    loss: Tensor,
-    frequency: int = 1,
-) -> None:
-    """
-    Print the current batch information.
-
-    Params:
-        mode: Mode in which the model is in. Either "train" or "val".
-        batch_idx: Batch index.
-        loader: Train or validation Dataloader.
-        epoch: Current epoch.
-        loss: Loss of the current batch.
-        frequency: Frequency at which to print the batch info.
-    """
-    assert mode.lower() in ["train", "val"]
-    assert type(frequency) == int
-
-    if batch_idx % frequency == 0:
-        if batch_idx == len(loader) - 1:
-            current_samples = len(loader.dataset)
-        else:
-            current_samples = (batch_idx + 1) * loader.batch_size
-
-        total_samples = len(loader.dataset)
-        prog_perc = 100 * current_samples / total_samples
-
-        formatted_line = format_line(
-            mode=mode,
-            epoch=epoch,
-            current_samples=current_samples,
-            total_samples=total_samples,
-            percentage=prog_perc,
-            loss=loss,
-        )
-        logging.info(f"{formatted_line}")
 
 
 def load_checkpoint(
