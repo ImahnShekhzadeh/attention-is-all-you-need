@@ -36,11 +36,10 @@ def scaled_dot_product_attn(
     k: torch.Tensor,
     v: torch.Tensor,
     attn_mask: Optional[torch.Tensor] = None,
-    key_padding_mask: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Implement scaled dot-product attention for batched queries, keys and
-    values.
+    Implement scaled dot-product attention for (potentially batched) queries,
+    keys and values.
 
     Args:
         q: Queries in shape `(N, num_heads, seq_length, d_k)`,
@@ -50,10 +49,6 @@ def scaled_dot_product_attn(
             (in practice, `seq_length' == seq_length`)
         v: Values in shape `(N, num_heads, seq_length', d_v)`,
             `(N, seq_length', d_v)` or `(seq_length', d_v)`
-        attn_mask: Optional look-ahead mask. All values set to `0` will
-            be excluded for attention calculation.
-        key_padding_mask: Optional mask for padding of the keys. All values
-            set to `1` will be excluded for attention calculation.
 
     Returns:
         Weighted values $softmax(qk^T / sqrt(d_k)) v$ in shape
@@ -76,31 +71,6 @@ def scaled_dot_product_attn(
     # apply masks if provided
     if attn_mask is not None:
         attn_logits.masked_fill_(attn_mask == 0, -float("inf"))
-
-    if key_padding_mask is not None:
-        if attn_logits.ndim == 2:
-            assert key_padding_mask.ndim <= 2, (
-                "For unbatched queries, keys and values, padding mask must be "
-                f"1D of shape {attn_logits.shape[1]} or 2D of shape "
-                f"``(1, {attn_logits.shape[1]})``. Instead, padding mask has "
-                f"shape {key_padding_mask.shape}"
-            )
-        elif attn_logits.ndim == 3:
-            assert key_padding_mask.ndim == 2, (
-                "For batched queries, keys and values, padding mask must be "
-                f"2D of shape ({attn_logits.shape[0]}, {attn_logits.shape[2]})"
-                f". Instead, padding mask has shape {key_padding_mask.shape}."
-            )
-            key_padding_mask = key_padding_mask.unsqueeze(1)
-        elif attn_logits.ndim == 4:
-            assert key_padding_mask.ndim == 2, (
-                "For batched queries, keys and values, padding mask must be "
-                f"2D of shape ({attn_logits.shape[0]}, {attn_logits.shape[2]})"
-                f". Instead, padding mask has shape {key_padding_mask.shape}."
-            )
-            key_padding_mask = key_padding_mask.unsqueeze(1).unsqueeze(1)
-
-        attn_logits.masked_fill_(key_padding_mask == 1, -float("inf"))
 
     # calculate attention weights
     attn_weights = softmax(attn_logits, dim=-1)
@@ -172,7 +142,6 @@ class MultiHeadAttention(nn.Module):
         self,
         x: torch.Tensor,
         attn_mask: Optional[torch.Tensor] = None,
-        key_padding_mask: Optional[torch.Tensor] = None,
         return_attention: Optional[bool] = False,
     ) -> torch.Tensor:
         """
@@ -183,8 +152,6 @@ class MultiHeadAttention(nn.Module):
                 (`input_dim = embed_dim = d_model` in [1])
             attn_mask: Optional look-ahead mask. All values set to `1` will
                 be excluded for attention calculation.
-            key_padding_mask: Optional mask for padding of the keys. All values
-                set to `1` will be excluded for attention calculation.
             return_attention: Whether to return the attention weights
 
         Returns:
@@ -217,7 +184,6 @@ class MultiHeadAttention(nn.Module):
             k_proj,
             v_proj,
             attn_mask=attn_mask,
-            key_padding_mask=key_padding_mask,
         )
         values = (values := values.permute(0, 2, 1, 3)).reshape(
             values.shape[0], values.shape[1], self.embed_dim
