@@ -46,12 +46,8 @@ class DecoderBlock(nn.Module):
         )
 
         # layers applied between the main layers
-        self.norm_a = nn.LayerNorm(
-            normalized_shape=[embed_dim],
-        )
-        self.norm_b = nn.LayerNorm(
-            normalized_shape=[embed_dim],
-        )
+        self.norm_a = nn.LayerNorm(normalized_shape=[embed_dim])
+        self.norm_b = nn.LayerNorm(normalized_shape=[embed_dim])
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
