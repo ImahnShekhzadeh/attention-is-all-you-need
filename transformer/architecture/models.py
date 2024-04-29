@@ -22,7 +22,12 @@ class Decoder(nn.Module):
         Transformer decoder.
 
         Args:
-            --- cf. `Encoder` ---
+            num_layers: Number of times to stack the encoder block.
+            embed_dim: Embedding dim, referred to as `d_model` in [1]
+            num_heads: Number of heads, `h` in [1]
+            dim_feedfwd: Hidden dimension when applying two-layer MLP
+            dropout: Amount of dropout to be applied.
+            use_bias: Whether a bias term is used. Default is `False`
         """
         super().__init__()
         self.num_layers = num_layers
