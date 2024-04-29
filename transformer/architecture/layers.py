@@ -1,93 +1,7 @@
-from typing import Optional
-
 import torch
 from torch import nn
 
-from .attention import DecoderMultiHeadAttention, MultiHeadAttention
-
-
-class EncoderBlock(nn.Module):
-    def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-        dim_feedfwd: int = 2048,
-        dropout: bool = 0.0,
-        use_bias: bool = False,
-    ) -> None:
-        """
-        Initialization function.
-
-        Args:
-            embed_dim: Embedding dim, referred to as `d_model` in [1]
-            num_heads: Number of heads, `h` in [1]
-            dim_feedfwd: Hidden dimension when applying two-layer MLP
-            dropout: Amount of dropout to be applied.
-            use_bias: Whether a bias term is used. Default is `False`
-
-        [1] http://arxiv.org/abs/1706.03762
-        """
-        super().__init__()
-
-        # check dropout rate
-        assert 0 <= dropout <= 1, (
-            f"Invalid amount of droput (`{dropout}`) specified. "
-            f"Dropout rate should be between `0` and `1`."
-        )
-
-        # multi-head attention layer
-        self.multihead_attn = MultiHeadAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            use_bias=use_bias,
-        )
-
-        # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
-        self.mlp = PositionwiseFeedForward(
-            embed_dim=embed_dim, dim_feedfwd=dim_feedfwd
-        )
-
-        # layers applied between the main layers
-        self.norm_a = nn.LayerNorm(
-            normalized_shape=[embed_dim],
-        )
-        self.norm_b = nn.LayerNorm(
-            normalized_shape=[embed_dim],
-        )
-        self.dropout = nn.Dropout(p=dropout)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        mask: Optional[torch.Tensor] = None,
-        src_key_padding_mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        """
-        Forward pass.
-
-        Args:
-            x: Input tensor of shape `(N, S, input_dim)`
-                (`input_dim = embed_dim = d_model` in [1])
-            mask: Mask for the source sequence, either 2D, 3D or 4D
-            src_key_padding_mask: Mask for source keys, shape: `(N, S)`
-
-        Returns:
-            Output tensor of shape `(N, S, input_dim)`
-        """
-
-        # multi-head attention part
-        out = self.multihead_attn(
-            x=x,
-            attn_mask=mask,
-            key_padding_mask=src_key_padding_mask,
-        )
-        out = self.norm_a(self.dropout(out) + x)
-
-        # feed-forward part
-        feedfwd_out = self.dropout(self.mlp(out))
-        out = self.norm_b(feedfwd_out + out)
-
-        return out
+from .attention import MultiHeadAttention
 
 
 class DecoderBlock(nn.Module):
@@ -128,7 +42,7 @@ class DecoderBlock(nn.Module):
 
         # multi-head attention layer, where keys and values come from encoder
         # output
-        self.decoder__multihead_attn = DecoderMultiHeadAttention(
+        self.decoder__multihead_attn = MultiHeadAttention(
             embed_dim=embed_dim,
             num_heads=num_heads,
             use_bias=use_bias,
@@ -151,29 +65,15 @@ class DecoderBlock(nn.Module):
         )
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        encoder_output: torch.Tensor,
-        mask: torch.Tensor,
-        memory_mask: Optional[torch.Tensor] = None,
-        tgt_key_padding_mask: Optional[torch.Tensor] = None,
-        memory_key_padding_mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
 
         Args:
             x: Input tensor of shape `(N, T, input_dim)`
                 (`input_dim = embed_dim = d_model` in [1])
-            encoder_output: Encoder output, shape: `(N, S, embed_dim)`
-                (`embed_dim = d_model` in [1])
             mask: Mask for the target sequence, either 2D, 3D or 4D (prevents
                 attending to subsequent tokens)
-            memory_mask: Mask for the encoder output, either 2D, 3D or 4D
-            tgt_key_padding_mask: Mask for target keys, shape: `(N, T)`
-            memory_key_padding_mask: Mask for memory (encoder output) keys,
-                shape: `(N, S)`
 
         Returns:
             Output tensor of shape `(N, T, input_dim)`
@@ -183,18 +83,12 @@ class DecoderBlock(nn.Module):
         out_a = self.multihead_attn(
             x=x,
             attn_mask=mask,
-            key_padding_mask=tgt_key_padding_mask,
         )
         out_a = self.norm_a(self.dropout(out_a) + x)
 
         # multi-head attention part, where queries and keys come from encoder
         # output
-        out_b = self.decoder__multihead_attn(
-            x=out_a,
-            encoder_output=encoder_output,
-            attn_mask=memory_mask,
-            key_padding_mask=memory_key_padding_mask,
-        )
+        out_b = self.decoder__multihead_attn(x=out_a, attn_mask=mask)
         out_b = self.norm_b(self.dropout(out_b) + out_a)
 
         # feed-forward part
