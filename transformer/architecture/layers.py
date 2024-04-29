@@ -40,14 +40,6 @@ class DecoderBlock(nn.Module):
             use_bias=use_bias,
         )
 
-        # multi-head attention layer, where keys and values come from encoder
-        # output
-        self.decoder__multihead_attn = MultiHeadAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            use_bias=use_bias,
-        )
-
         # two-layer MLP (called "feed forward" in [1], cf. Eq. (2) in [1])
         self.mlp = PositionwiseFeedForward(
             embed_dim=embed_dim, dim_feedfwd=dim_feedfwd
@@ -58,9 +50,6 @@ class DecoderBlock(nn.Module):
             normalized_shape=[embed_dim],
         )
         self.norm_b = nn.LayerNorm(
-            normalized_shape=[embed_dim],
-        )
-        self.norm_c = nn.LayerNorm(
             normalized_shape=[embed_dim],
         )
         self.dropout = nn.Dropout(p=dropout)
@@ -80,20 +69,12 @@ class DecoderBlock(nn.Module):
         """
 
         # multi-head attention part
-        out_a = self.multihead_attn(
-            x=x,
-            attn_mask=mask,
-        )
+        out_a = self.multihead_attn(x=x, attn_mask=mask)
         out_a = self.norm_a(self.dropout(out_a) + x)
 
-        # multi-head attention part, where queries and keys come from encoder
-        # output
-        out_b = self.decoder__multihead_attn(x=out_a, attn_mask=mask)
-        out_b = self.norm_b(self.dropout(out_b) + out_a)
-
         # feed-forward part
-        feedfwd_out = self.dropout(self.mlp(out_b))
-        out = self.norm_c(feedfwd_out + out_b)
+        feedfwd_out = self.mlp(out_a)
+        out = self.norm_b(self.dropout(feedfwd_out) + out_a)
 
         return out
 
