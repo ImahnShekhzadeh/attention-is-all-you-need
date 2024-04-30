@@ -75,7 +75,7 @@ class Transformer(nn.Module):
         embedding_dim: int,
         num_heads: int,
         vocab_size: int,
-        seq_length: int = int(1e4),
+        max__seq_length: int = int(1e4),
         dim_feedfwd: int = 2048,
         dropout_rate: float = 0.0,
         use_bias: bool = False,
@@ -88,7 +88,7 @@ class Transformer(nn.Module):
             embedding_dim: Embedding dim, referred to as `d_model` in [1].
             num_heads: Number of heads for the multi-head attention.
             vocab_size: Vocabulary size of the tokenizer.
-            seq_length: Maximum expected sequence length.
+            max__seq_length: Maximum expected sequence length.
             dim_feedfwd: Hidden dimension when applying two-layer MLP in
                 encoder and decoder blocks.
             dropout_rate: Dropout rate.
@@ -112,7 +112,7 @@ class Transformer(nn.Module):
             use_bias=use_bias,
         )
         self.pos_encod = PositionalEncoding(
-            max__seq_length=seq_length,
+            max__seq_length=max__seq_length,
             embed_dim=embedding_dim,
         )
         self.embedding = nn.Embedding(
@@ -142,7 +142,7 @@ class Transformer(nn.Module):
                 to subsequent tokens.
 
         Returns:
-            Output tensor of shape `(N, seq_length, vocab_size)`.
+            Output tensor of shape `(N, block_size, vocab_size)`.
         """
 
         # embedding and positional encoding for the decoder,
