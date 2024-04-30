@@ -130,14 +130,14 @@ class Transformer(nn.Module):
 
     def forward(
         self,
-        input: torch.Tensor,
+        x: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward pass through the transformer model.
 
         Args:
-            input: Input tokens to decoder , shape: `(N, block_size)`.
+            x: Input tokens to decoder , shape: `(N, block_size)`.
             mask: Mask in shape `(block_size, block_size)`, prevent attending
                 to subsequent tokens.
 
@@ -147,12 +147,12 @@ class Transformer(nn.Module):
 
         # embedding and positional encoding for the decoder,
         # `(N, block_size, embed_dim)`
-        input = math.sqrt(self.embed_dim) * self.embedding(input)
-        input = self.pos_encod(input)
-        input = self.dropout(input)
+        x = math.sqrt(self.embed_dim) * self.embedding(x)
+        x = self.pos_encod(x)
+        x = self.dropout(x)
 
         # forward pass through decoder and linear layer
-        x = self.decoder(input, x, mask=mask)
+        x = self.decoder(x, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, block_size, vocab_size)`
 
         return x

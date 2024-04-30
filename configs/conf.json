@@ -14,7 +14,7 @@
     "num_workers": 4,
     "seed_number": 0,
     "pin_memory": true,
-    "block_size": 1024,
+    "block_size": 512,
     "use_amp": true,
     "warmup_steps": 4000,
     "saving_path": "outputs/3",

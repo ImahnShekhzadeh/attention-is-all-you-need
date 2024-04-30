@@ -301,6 +301,7 @@ def train_and_validate(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     num_steps: int,
+    batch_size: int,
     train_data: Tensor,
     val_data: Tensor,
     block_size: int,
@@ -319,6 +320,7 @@ def train_and_validate(
         model: Model to train.
         optimizer: Optimizer to use.
         num_steps: Number of iterations to train.
+        batch_size: Batch size.
         train_data: Training data.
         val_data: Validation data.
         block_size: Maximum context length.
@@ -372,7 +374,7 @@ def train_and_validate(
             enabled=use_amp,
         ):
             # `[N, block_size, vocab_size]`
-            output = model(tokens=X, mask=mask)
+            output = model(X, mask=mask)
             loss = cce_mean(
                 output.reshape(-1, output.shape[-1]), Y.reshape(-1)
             )
@@ -415,7 +417,7 @@ def train_and_validate(
                 dtype=torch.float16,
                 enabled=use_amp,
             ):
-                val_output = model(tokens=X, mask=mask)
+                val_output = model(X, mask=mask)
                 val_loss = (
                     cce_mean(
                         val_output.reshape(-1, val_output.shape[-1]),
@@ -425,7 +427,7 @@ def train_and_validate(
                     .item()
                 )
 
-            val_loss.append(val_loss)
+            val_losses.append(val_loss)
             batch_size = val_output.shape[0]
 
             if rank in [0, torch.device("cpu")]:

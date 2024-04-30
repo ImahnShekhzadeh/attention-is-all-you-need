@@ -62,7 +62,6 @@ def main(
         embedding_dim=args.embedding_dim,
         num_heads=args.num_heads,
         vocab_size=vocab_size,
-        seq_length=args.seq_length,
         dim_feedfwd=args.dim_feedfwd,
         dropout_rate=args.dropout_rate,
     )
@@ -126,6 +125,7 @@ def main(
             model=model,
             optimizer=optimizer,
             num_steps=args.num_steps,
+            batch_size=args.batch_size,
             train_data=train_data,
             val_data=val_data,
             block_size=args.block_size,
