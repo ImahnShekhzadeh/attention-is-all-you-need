@@ -124,8 +124,10 @@ class Transformer(nn.Module):
             vocab_size,
             bias=False,
         )
-        # weight sharing with the shared embedding
-        self.pre_softmax_linear.weight = self.embedding.weight
+        # weight sharing with the shared embedding (not sure why, but it has
+        # to be like this, otherwise loss of randomly initialized model is too
+        # high)
+        self.embedding.weight = self.pre_softmax_linear.weight
         self.dropout = nn.Dropout(p=dropout_rate)
 
     def forward(
