@@ -191,15 +191,6 @@ def get_parser() -> argparse.ArgumentParser:
         help="Maximum context length for predictions",
     )
     parser.add_argument(
-        "--tokenizer_file",
-        type=str,
-        default=None,
-        help=(
-            "Path to the tokenizer. If provided, the tokenizer will "
-            "be loaded from this path."
-        ),
-    )
-    parser.add_argument(
         "--vocab_size",
         type=int,
         default=int(3.7e4),

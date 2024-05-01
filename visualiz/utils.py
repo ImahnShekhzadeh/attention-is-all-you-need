@@ -1,24 +1,10 @@
 """
 Utility functions/classes for the script `plot__seq_length.py`.
 """
-import argparse
-import os
 from typing import List
 
 import datasets
 from tokenizers import Tokenizer
-
-
-def check_args(args: argparse.Namespace) -> None:
-    """
-    Check provided arguments.
-    """
-    assert os.path.exists(
-        args.tokenizer_file
-    ), "Please provide a valid path to the tokenizer file."
-    assert args.tokenizer_file.endswith(
-        ".json"
-    ), "If a tokenizer is provided, it must be a JSON file."
 
 
 def get_len_tokenized_data(
