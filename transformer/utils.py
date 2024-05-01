@@ -158,7 +158,9 @@ def check_args(args: Namespace) -> None:
         )
 
 
-def get_dataset(train_split: float = 0.8) -> Tuple[Tensor, Tensor, int]:
+def get_dataset(
+    train_split: float = 0.8,
+) -> Tuple[Tensor, Tensor, List[str], int]:
     """
     Get Tiny Shakespeare dataset.
 
@@ -206,7 +208,7 @@ def get_dataset(train_split: float = 0.8) -> Tuple[Tensor, Tensor, int]:
     train_data = data[:num_train_examples]
     val_data = data[num_train_examples:]
 
-    return train_data, val_data, vocab_size
+    return train_data, val_data, vocab, vocab_size
 
 
 def encode(text: str, vocab: List[str]) -> List[int]:
@@ -595,90 +597,43 @@ def log_parameter_table(model: nn.Module) -> None:
 @torch.no_grad()
 def generate_text(
     model: nn.Module,
+    max_new_tokens: int,
     use_amp: bool,
-    test_loader: DataLoader,
-    start_token_id: int,
-    pad_token_id: int,
-    rank: int | torch.device,
-) -> List[List[str]]:
+    vocab: List[str],
+    rank: str | int | torch.device,
+    temperature: float = 1.0,
+    top_k: Optional[int] = None,
+) -> None:
     """
     Generate text from the model.
 
     Args:
         model: Transformer.
-        tokenizer: Tokenizer.
+        max_new_tokens: Maximum number of tokens to generate.
         use_amp: Whether to use automatic mixed precision.
-        test_loader: Dataloader for the test set.
-        start_token_id: ID of the start token.
+        vocab: Vocabulary.
         rank: Device on which the code is executed.
-
-    Returns:
-        Generated text.
+        temperature: Temperature for sampling. For `temperature > 1`,
+            predictions will be more diverse, for `temperature < 1`,
+            predictions will be more conservative.
+        top_k: Top-k sampling.
     """
     model.eval()
-    generated_ids = []
 
-    for test_dict in test_loader:
-        src_tokens = test_dict["source"].to(rank)  # `(N, S)`
-        src_key_padding_mask = src_tokens == pad_token_id  # `(N, S)`
+    start_ids = encode("\n", vocab=vocab)
+    x = torch.tensor(start_ids, dtype=torch.long, device=rank).unsqueeze(dim=0)
 
-        decoder_tokens = start_token_id * torch.ones(
-            (src_tokens.shape[0], 1), dtype=src_tokens.dtype
-        ).to(rank)
+    with autocast(
+        device_type=x.device.type,
+        dtype=torch.float16,
+        enabled=use_amp,
+    ):
+        gen_tok = model.generate(
+            x,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+        )
 
-        while decoder_tokens.shape[1] < src_tokens.shape[1]:
-            with autocast(
-                device_type=src_tokens.device.type,
-                dtype=torch.float16,
-                enabled=use_amp,
-            ):
-                tgt_mask = get_subsequent_mask(
-                    size=decoder_tokens.shape[1], rank=rank
-                )
-
-                output = model(
-                    src_tokens,
-                    decoder_tokens,
-                    tgt_mask=tgt_mask,
-                    src_key_padding_mask=src_key_padding_mask,
-                )  # `(N, decoder_tokens.shape[1], vocab_size)`
-
-            generated_tokens = output.argmax(dim=2)[:, -1].unsqueeze(dim=1)
-
-            # append the generated token IDs to decoder tokens
-            decoder_tokens = torch.cat(
-                (decoder_tokens, generated_tokens), dim=1
-            )
-
-        generated_ids.extend(decoder_tokens[:, 1:].cpu().tolist())
-
-    generated_text = tokenizer.decode_batch(generated_ids)  # `List[str]`
-    generated_text = [[item] for item in generated_text]  # `List[List[str]]`
-    logging.info(f"Generated translations:\n\n{generated_text}")
-
-    return generated_text
-
-
-def compute__bleu_score(test_data: List[Dict], generated_data: List) -> Dict:
-    """
-    Compute the BLEU score of the model.
-
-    Args:
-        test_data: List containing test data (strings) for both the source and
-            target languages.
-        generated_data: Translated sentences.
-
-    Returns:
-        Dictionary containing BLEU score, precisions, brevity penalty, length
-        ratio, etc.
-    """
-    reference_data = []
-    for dict in test_data:
-        reference_data.append([dict["en"]])
-
-    bleu = evaluate.load("bleu")
-    results = bleu.compute(
-        predictions=generated_data,
-        references=reference_data,
-    )
-    return results
+    generated_text = decode(gen_tok.squeeze(dim=0), vocab=vocab)
+    logging.info(f"Generated text:\n\n{generated_text}")

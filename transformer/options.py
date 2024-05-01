@@ -185,6 +185,24 @@ def get_parser() -> argparse.ArgumentParser:
         help="Maximum context length for predictions",
     )
     parser.add_argument(
+        "--max_new_tokens",
+        type=int,
+        default=100,
+        help="Maximum number of tokens to generate.",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Temperature for sampling.",
+    )
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=None,
+        help="Top-k sampling.",
+    )
+    parser.add_argument(
         "--vocab_size",
         type=int,
         default=int(3.7e4),

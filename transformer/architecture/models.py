@@ -4,6 +4,7 @@ from typing import Optional
 import torch
 from torch import nn
 
+from ..utils import get_subsequent_mask
 from .encoding import PositionalEncoding
 from .layers import DecoderBlock
 
@@ -75,6 +76,7 @@ class Transformer(nn.Module):
         embedding_dim: int,
         num_heads: int,
         vocab_size: int,
+        block_size: int,
         max__seq_length: int = int(1e4),
         dim_feedfwd: int = 2048,
         dropout_rate: float = 0.0,
@@ -88,6 +90,7 @@ class Transformer(nn.Module):
             embedding_dim: Embedding dim, referred to as `d_model` in [1].
             num_heads: Number of heads for the multi-head attention.
             vocab_size: Vocabulary size of the tokenizer.
+            block_size: Maximum context length for predictions.
             max__seq_length: Maximum expected sequence length.
             dim_feedfwd: Hidden dimension when applying two-layer MLP in
                 encoder and decoder blocks.
@@ -103,6 +106,7 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.embed_dim = embedding_dim
+        self.block_size = block_size
         self.decoder = Decoder(
             num_layers=num__decoder_layers,
             embed_dim=embedding_dim,
@@ -156,5 +160,55 @@ class Transformer(nn.Module):
         # forward pass through decoder and linear layer
         x = self.decoder(x, mask=mask)
         x = self.pre_softmax_linear(x)  # `(N, block_size, vocab_size)`
+
+        return x
+
+    @torch.no_grad()
+    def generate(
+        self,
+        x: torch.Tensor,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_k: Optional[int] = None,
+    ) -> torch.tensor:
+        """
+        Generate text using the transformer model.
+
+        Args:
+            x: Input tokens to decoder, shape: `(N, T)`.
+            max_new_tokens: Maximum number of tokens to generate.
+            temperature: Temperature for sampling. For `temperature > 1`,
+                predictions will be more diverse, for `temperature < 1`,
+                predictions will be more conservative.
+            top_k: Top-k sampling.
+
+        Returns:
+            Output tensor of shape `(N, T + max_new_tokens)`.
+        """
+        for _ in range(max_new_tokens):
+            # truncate input if it exceeds the block size
+            x_cond = (
+                x
+                if x.shape[1] <= self.block_size
+                else x[:, -self.block_size :]
+            )
+            # generate mask
+            mask = get_subsequent_mask(size=x_cond.shape[1], rank=x.device)
+            # get model predictions for next token
+            logits = self(x_cond, mask=mask)
+            # get logits at last token in sequence and scale by temperature
+            logits = logits[:, -1, :] / temperature
+            # apply top-k sampling
+            if top_k is not None:
+                max_vals, _ = torch.topk(
+                    logits, k=min(top_k, logits.shape[-1]), dim=-1
+                )
+                logits[logits < max_vals[:, [-1]]] = float("-inf")
+            # convert logits to probabilities
+            probs = nn.Softmax(dim=-1)(logits)
+            # sample from distribution
+            next_token = torch.multinomial(probs, num_samples=1)
+            # append new token to sequence
+            x = torch.cat([x, next_token], dim=-1)
 
         return x

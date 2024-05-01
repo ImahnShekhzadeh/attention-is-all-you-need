@@ -15,7 +15,6 @@ from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import (
     cleanup,
-    compute__bleu_score,
     generate_text,
     get_dataset,
     load_checkpoint,
@@ -54,7 +53,7 @@ def main(
         )
 
     # get dataset
-    train_data, val_data, vocab_size = get_dataset()
+    train_data, val_data, vocab, vocab_size = get_dataset()
 
     # define transformer
     model = Transformer(
@@ -62,6 +61,7 @@ def main(
         embedding_dim=args.embedding_dim,
         num_heads=args.num_heads,
         vocab_size=vocab_size,
+        block_size=args.block_size,
         dim_feedfwd=args.dim_feedfwd,
         dropout_rate=args.dropout_rate,
     )
@@ -164,22 +164,15 @@ def main(
 
         model.eval()
 
-        translated_text = generate_text(
+        generate_text(
             model=model,
-            tokenizer=tokenizer,
-            use_amp=args.use_amp,
-            test_loader=test_loader,
-            start_token_id=start_token_id,
-            pad_token_id=pad_token_id,
+            vocab=vocab,
+            block_size=args.block_size,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_k=args.top_k,
             rank=rank,
         )
-
-        # evaluation results
-        results = compute__bleu_score(
-            test_data=data["test"]["translation"],
-            generated_data=translated_text,
-        )
-        logging.info(f"Results:\n{results}")
 
 
 if __name__ == "__main__":
