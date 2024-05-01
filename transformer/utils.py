@@ -470,13 +470,6 @@ def train_and_validate(
                     step=step,
                 )
 
-            """
-            logging.info(
-                f"\nEpoch {epoch}: {perf_counter() - t0:.3f} [sec]\t"
-                f"Mean train/val loss: {train_losses[epoch]:.4f}/"
-                f"{val_losses[epoch]:.4f}\n"
-            )
-            """
         model.train()
 
     if rank in [0, torch.device("cpu")]:
