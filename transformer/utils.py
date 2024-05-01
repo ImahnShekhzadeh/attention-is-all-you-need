@@ -24,6 +24,8 @@ from torch.cuda.amp import GradScaler
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
 
+from architecture.attention import get_subsequent_mask
+
 
 def total_norm__grads(model: nn.Module) -> float:
     """
@@ -272,31 +274,6 @@ def get_batch(
     )
 
     return input.to(device), target.to(device)
-
-
-def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
-    """
-    Define mask to prevent the decoder from attending to subsequent tokens,
-    also cf. https://peterbloem.nl/blog/transformers.
-
-    Args:
-        size: Size of the square mask.
-        rank: Device.
-
-    Returns:
-        Subsequent mask, shape: `(size, size)`.
-    """
-
-    mask = torch.tril(
-        torch.ones(
-            size,
-            size,
-            device=rank,
-        ),
-        diagonal=1,
-    )
-
-    return mask
 
 
 def train_and_validate(
@@ -598,6 +575,7 @@ def log_parameter_table(model: nn.Module) -> None:
 def generate_text(
     model: nn.Module,
     max_new_tokens: int,
+    block_size: int,
     use_amp: bool,
     vocab: List[str],
     rank: str | int | torch.device,
@@ -610,6 +588,7 @@ def generate_text(
     Args:
         model: Transformer.
         max_new_tokens: Maximum number of tokens to generate.
+        block_size: Maximum context length for predictions.
         use_amp: Whether to use automatic mixed precision.
         vocab: Vocabulary.
         rank: Device on which the code is executed.
@@ -631,9 +610,10 @@ def generate_text(
         gen_tok = model.generate(
             x,
             max_new_tokens=max_new_tokens,
+            block_size=block_size,
             temperature=temperature,
             top_k=top_k,
         )
 
-    generated_text = decode(gen_tok.squeeze(dim=0), vocab=vocab)
+    generated_text = decode(gen_tok.squeeze(dim=0).tolist(), vocab=vocab)
     logging.info(f"Generated text:\n\n{generated_text}")

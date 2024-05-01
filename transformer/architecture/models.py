@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 from torch import nn
 
-from ..utils import get_subsequent_mask
+from .attention import get_subsequent_mask
 from .encoding import PositionalEncoding
 from .layers import DecoderBlock
 
@@ -76,7 +76,6 @@ class Transformer(nn.Module):
         embedding_dim: int,
         num_heads: int,
         vocab_size: int,
-        block_size: int,
         max__seq_length: int = int(1e4),
         dim_feedfwd: int = 2048,
         dropout_rate: float = 0.0,
@@ -90,7 +89,6 @@ class Transformer(nn.Module):
             embedding_dim: Embedding dim, referred to as `d_model` in [1].
             num_heads: Number of heads for the multi-head attention.
             vocab_size: Vocabulary size of the tokenizer.
-            block_size: Maximum context length for predictions.
             max__seq_length: Maximum expected sequence length.
             dim_feedfwd: Hidden dimension when applying two-layer MLP in
                 encoder and decoder blocks.
@@ -106,7 +104,6 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.embed_dim = embedding_dim
-        self.block_size = block_size
         self.decoder = Decoder(
             num_layers=num__decoder_layers,
             embed_dim=embedding_dim,
@@ -168,6 +165,7 @@ class Transformer(nn.Module):
         self,
         x: torch.Tensor,
         max_new_tokens: int,
+        block_size: int,
         temperature: float = 1.0,
         top_k: Optional[int] = None,
     ) -> torch.tensor:
@@ -187,11 +185,7 @@ class Transformer(nn.Module):
         """
         for _ in range(max_new_tokens):
             # truncate input if it exceeds the block size
-            x_cond = (
-                x
-                if x.shape[1] <= self.block_size
-                else x[:, -self.block_size :]
-            )
+            x_cond = x if x.shape[1] <= block_size else x[:, -block_size:]
             # generate mask
             mask = get_subsequent_mask(size=x_cond.shape[1], rank=x.device)
             # get model predictions for next token

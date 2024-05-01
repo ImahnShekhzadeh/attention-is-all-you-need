@@ -7,6 +7,31 @@ from torch.nn.functional import softmax
 from torch.nn.init import xavier_uniform_
 
 
+def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
+    """
+    Define mask to prevent the decoder from attending to subsequent tokens,
+    also cf. https://peterbloem.nl/blog/transformers.
+
+    Args:
+        size: Size of the square mask.
+        rank: Device.
+
+    Returns:
+        Subsequent mask, shape: `(size, size)`.
+    """
+
+    mask = torch.tril(
+        torch.ones(
+            size,
+            size,
+            device=rank,
+        ),
+        diagonal=1,
+    )
+
+    return mask
+
+
 def expand_mask(mask: torch.Tensor) -> torch.Tensor:
     """
     Helper function to support different mask shapes.

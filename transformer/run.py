@@ -61,7 +61,6 @@ def main(
         embedding_dim=args.embedding_dim,
         num_heads=args.num_heads,
         vocab_size=vocab_size,
-        block_size=args.block_size,
         dim_feedfwd=args.dim_feedfwd,
         dropout_rate=args.dropout_rate,
     )
@@ -168,10 +167,11 @@ def main(
             model=model,
             vocab=vocab,
             block_size=args.block_size,
+            use_amp=args.use_amp,
             max_new_tokens=args.max_new_tokens,
+            rank=rank,
             temperature=args.temperature,
             top_k=args.top_k,
-            rank=rank,
         )
 
 
