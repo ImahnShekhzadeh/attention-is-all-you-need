@@ -18,5 +18,6 @@
     "warmup_steps": 4000,
     "saving_path": "outputs/3",
     "max_new_tokens": 10000,
-    "top_k": 200
+    "top_k": 200,
+    "compile_mode": "default"
 }

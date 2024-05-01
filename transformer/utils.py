@@ -397,7 +397,7 @@ def train_and_validate(
 
             logging.info(
                 f"step {step}: train loss: {train_loss:.4f}, val loss: "
-                f"{val_loss:.4f}"
+                f"{val_loss:.4f}, lr: {optimizer.param_groups[0]['lr']}"
             )
             # log to Weights & Biases
             if wandb_logging:

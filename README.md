@@ -12,15 +12,12 @@ To run the python script,
 docker build -f Dockerfile -t transformers:1.0.0 .
 docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --train
 ```
+By default, [`torch.compile()`](https://pytorch.org/docs/stable/generated/torch.compile.html) is used, which reduces training time.
+
 In order to generate text from a pre-trained model, run
 ```
-docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --loading_path <loading_path>
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --loading_path <loading_path> --num_steps 0
 ```
-To run the python script locally in a conda environment, which allows for faster debugging,
-```
-python3 -B transformer/run.py --config configs/conf.json
-```
-As of 08 February 2024, the stable version of `torchtext` is `0.17.0`, which does not have the WMT 2024 EN-DE dataset included, which the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper used. Hence, the IWSLT2017 DE-EN dataset is used.
 
 In the original [Attention is All You Need](http://arxiv.org/abs/1706.03762) paper, the model is reported to have about `65`M parameters, the implemented transformer in this repo - with the options provided in `configs/conf.json` - has about `63`M params.
 
