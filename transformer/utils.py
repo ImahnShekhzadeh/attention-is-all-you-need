@@ -426,18 +426,19 @@ def train_and_validate(
                     .cpu()
                     .item()
                 )
-
             val_losses.append(val_loss)
             batch_size = val_output.shape[0]
 
             if rank in [0, torch.device("cpu")]:
-                format_line(
-                    mode="val",
-                    epoch=step,
-                    current_samples=step,
-                    total_samples=num_steps,
-                    percentage=100 * step / num_steps,
-                    loss=val_loss,
+                logging.info(
+                    format_line(
+                        mode="val",
+                        epoch=step,
+                        current_samples=step,
+                        total_samples=num_steps,
+                        percentage=100 * step / num_steps,
+                        loss=val_loss,
+                    )
                 )
 
         """
