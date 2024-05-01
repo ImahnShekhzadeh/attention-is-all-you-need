@@ -17,6 +17,6 @@
     "use_amp": true,
     "warmup_steps": 4000,
     "saving_path": "outputs/3",
-    "max__new_tokens": 10000,
+    "max_new_tokens": 10000,
     "top_k": 200
 }
