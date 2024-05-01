@@ -44,16 +44,10 @@ def get_parser() -> argparse.ArgumentParser:
         help="epsilon of the ADAM(W) optimizer.",
     )
     parser.add_argument(
-        "--freq_output__train",
+        "--log_freq_loss",
         type=int,
         default=1,
-        help="Frequency of outputting the training loss.",
-    )
-    parser.add_argument(
-        "--freq_output__val",
-        type=int,
-        default=1,
-        help="Frequency of outputting the validation loss.",
+        help="Frequency at which train and val losser are logged.",
     )
     parser.add_argument(
         "--lr_multiplier",

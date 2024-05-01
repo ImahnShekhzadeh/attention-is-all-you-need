@@ -308,8 +308,7 @@ def train_and_validate(
     rank: int | torch.device,
     use_amp: bool,
     lr_scheduler: Optional[LRScheduler] = None,
-    freq_output__train: Optional[int] = 10,
-    freq_output__val: Optional[int] = 10,
+    log_freq_loss: int = 100,
     max_norm: Optional[float] = None,
     wandb_logging: bool = False,
 ) -> Dict[torch.Tensor, torch.Tensor]:
@@ -329,8 +328,7 @@ def train_and_validate(
         train_loader: Dataloader for the training set.
         val_loader: Dataloader for the validation set.
         lr_scheduler: Learning rate scheduler.
-        freq_output__train: Frequency at which to print the training info.
-        freq_output__val: Frequency at which to print the validation info.
+        log_freq_loss: Frequency at which to log the loss.
         max_norm: Maximum norm of the gradients.
         world_size: Number of processes participating in the job. Used to get
             the number of iterations correctly in a DDP setup.
@@ -373,8 +371,7 @@ def train_and_validate(
             dtype=torch.float16,
             enabled=use_amp,
         ):
-            # `[N, block_size, vocab_size]`
-            output = model(X, mask=mask)
+            output = model(X, mask=mask)  # `[N, block_size, vocab_size]`
             loss = cce_mean(
                 output.reshape(-1, output.shape[-1]), Y.reshape(-1)
             )
@@ -387,19 +384,7 @@ def train_and_validate(
         scaler.step(optimizer)
         scaler.update()
 
-        train_losses.append(loss.cpu().item())
-
-        if rank in [0, torch.device("cpu")]:
-            logging.info(
-                format_line(
-                    mode="train",
-                    epoch=step,
-                    current_samples=step,
-                    total_samples=num_steps,
-                    percentage=100 * step / num_steps,
-                    loss=loss,
-                )
-            )
+        train_losses.append(loss.item())
 
         # validation stuff:
         model.eval()
@@ -418,59 +403,41 @@ def train_and_validate(
                 enabled=use_amp,
             ):
                 val_output = model(X, mask=mask)
-                val_loss = (
-                    cce_mean(
-                        val_output.reshape(-1, val_output.shape[-1]),
-                        Y.reshape(-1),
-                    )
-                    .cpu()
-                    .item()
+                val_loss = cce_mean(
+                    val_output.reshape(-1, val_output.shape[-1]),
+                    Y.reshape(-1),
                 )
-            val_losses.append(val_loss)
-            batch_size = val_output.shape[0]
+            val_losses.append(val_loss.item())
 
-            if rank in [0, torch.device("cpu")]:
-                logging.info(
-                    format_line(
-                        mode="val",
-                        epoch=step,
-                        current_samples=step,
-                        total_samples=num_steps,
-                        percentage=100 * step / num_steps,
-                        loss=val_loss,
-                    )
-                )
+        # log train and val losses:
+        if step % log_freq_loss == 0 and rank in [0, torch.device("cpu")]:
+            train_loss = np.mean(train_losses)
+            val_loss = np.mean(val_losses)
+            # reset losses:
+            train_losses, val_losses = [], []
 
-        """
-        train_losses.append(
-            np.sum(trainingLoss_perEpoch, axis=0) / len(train_loader.dataset)
-        )
-        val_losses.append(
-            np.sum(valLoss_perEpoch, axis=0) / len(val_loader.dataset)
-        )
-        if val_losses[epoch] < min_val_loss:
-            min_val_loss = val_losses[epoch]
-            checkpoint = {
-                "state_dict": deepcopy(model.state_dict()),
-                "optimizer": deepcopy(optimizer.state_dict()),
-                "val_loss": val_losses[epoch],
-                "epoch": epoch,
-            }
-        """
-
-        if rank in [0, torch.device("cpu")]:
+            logging.info(
+                f"step {step}: train_loss: {train_loss:.4f}, val loss: {val_loss:.4f}"
+            )
             # log to Weights & Biases
             if wandb_logging:
                 wandb.log(
                     {
-                        "train_loss": train_losses[step],
-                        "val_loss": val_losses[step],
+                        "train_loss": train_loss,
+                        "val_loss": val_loss,
                         "step": step,
                     },
                     step=step,
                 )
 
-        model.train()
+            if val_loss < min_val_loss:
+                min_val_loss = val_loss
+                checkpoint = {
+                    "state_dict": deepcopy(model.state_dict()),
+                    "optimizer": deepcopy(optimizer.state_dict()),
+                    "val_loss": val_loss,
+                    "step": step,
+                }
 
     if rank in [0, torch.device("cpu")]:
         end_timer_and_log(
@@ -551,33 +518,6 @@ def end_timer_and_log(
     return time_diff
 
 
-def format_line(
-    mode: str,
-    epoch: int,
-    current_samples: int,
-    total_samples: int,
-    percentage: float,
-    loss: Tensor,
-) -> None:
-    assert mode.lower() in ["train", "val"]
-
-    # calculate maximum width for each part
-    max_epoch_width = len(f"{mode.capitalize()} epoch: {epoch}")
-    max_sample_info_width = len(f"[{total_samples} / {total_samples} (100 %)]")
-
-    # format each part
-    epoch_str = f"{mode.capitalize()} step: {epoch}".ljust(max_epoch_width)
-    padded__current_sample = str(current_samples).zfill(
-        len(str(total_samples))
-    )
-    sample_info_str = f"[{padded__current_sample} / {total_samples} ({percentage:06.2f} %)]".ljust(
-        max_sample_info_width
-    )
-    loss_str = f"Loss: {loss:.4f}"
-
-    return f"{epoch_str}  {sample_info_str}  {loss_str}"
-
-
 def load_checkpoint(
     model: nn.Module,
     checkpoint: dict[torch.Tensor, torch.Tensor],
@@ -591,9 +531,24 @@ def load_checkpoint(
         optimizer: Optimizer for which state dict is loaded.
     """
     model.load_state_dict(state_dict=checkpoint["state_dict"])
+    loading_msg = "=> Checkpoint loaded."
+
     if optimizer is not None:
         optimizer.load_state_dict(state_dict=checkpoint["optimizer"])
-    logging.info("=> Checkpoint loaded.")
+
+    if "epoch" in checkpoint.keys():
+        loading_msg += f" It had been saved at epoch {checkpoint['epoch']}."
+    elif "step" in checkpoint.keys():
+        loading_msg += f" It had been saved at step {checkpoint['step']}."
+
+    if "val_loss" in checkpoint.keys():
+        loading_msg += f" Validation loss: {checkpoint['val_loss']:.4f}."
+
+    if "val_acc" in checkpoint.keys():
+        loading_msg += (
+            f" Validation accuracy: {100 * checkpoint['val_acc']:.2f} %."
+        )
+    logging.info(loading_msg)
 
 
 def save_checkpoint(state: Dict, filename: str = "my_checkpoint.pt") -> None:

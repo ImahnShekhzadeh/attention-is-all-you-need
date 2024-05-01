@@ -132,8 +132,7 @@ def main(
             rank=rank,
             use_amp=args.use_amp,
             lr_scheduler=lr_scheduler,
-            freq_output__train=args.freq_output__train,
-            freq_output__val=args.freq_output__val,
+            log_freq_loss=args.log_freq_loss,
             max_norm=args.max_norm,
             wandb_logging=wandb_logging,
         )
