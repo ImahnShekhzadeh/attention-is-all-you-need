@@ -16,5 +16,7 @@
     "block_size": 512,
     "use_amp": true,
     "warmup_steps": 4000,
-    "saving_path": "outputs/3"
+    "saving_path": "outputs/3",
+    "max__new_tokens": 10000,
+    "top_k": 200
 }

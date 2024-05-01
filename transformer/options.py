@@ -29,7 +29,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--compile_mode",
         type=str,
         default=None,
-        help=("Mode for compilation of the model when using `torch.compile`."),
+        help="Mode for compilation of the model when using `torch.compile`.",
     )
     parser.add_argument(
         "--config",
