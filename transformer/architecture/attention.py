@@ -188,19 +188,21 @@ class MultiHeadAttention(nn.Module):
             attn_mask = expand_mask(attn_mask)
         qkv_proj = self.qkv_proj(x)  # `(N, seq_length, 3 * embed_dim)`
 
-        # reshape and permute into
-        # `(N, self.num_heads, seq_length, 3 * self.head_dim)`
-        # note that `self.embed_dim = self.num_heads * self.head_dim`
-        qkv_proj = qkv_proj.reshape(
-            qkv_proj.shape[0],
-            qkv_proj.shape[1],
-            self.num_heads,
-            3 * self.head_dim,
-        ).permute(dims=(0, 2, 1, 3))
-
-        # separate queries, keys and values from reshaped and permuted
-        # projection `(N, self.num_heads, seq_length, self.head_dim)`
+        # separate queries, keys and values: `(N, seq_length, embed_dim)`
         q_proj, k_proj, v_proj = qkv_proj.chunk(chunks=3, dim=-1)
+
+        # reshape and permute into
+        # `(N, self.num_heads, seq_length, self.head_dim)`
+        # note that `self.embed_dim = self.num_heads * self.head_dim`
+        q_proj = q_proj.reshape(
+            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
+        ).permute(dims=(0, 2, 1, 3))
+        k_proj = k_proj.reshape(
+            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
+        ).permute(dims=(0, 2, 1, 3))
+        v_proj = v_proj.reshape(
+            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
+        ).permute(dims=(0, 2, 1, 3))
 
         # Determine value outputs
         # `(N, self.num_heads, seq_length, self.head_dim)`
