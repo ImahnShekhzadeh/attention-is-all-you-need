@@ -26,7 +26,7 @@ def get_subsequent_mask(size: int, rank: int | torch.device) -> torch.Tensor:
             size,
             device=rank,
         ),
-        diagonal=1,
+        diagonal=0,
     )
 
     return mask
