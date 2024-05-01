@@ -3,7 +3,7 @@
     "dropout_rate": 0.1,
     "embedding_dim": 512,
     "log_freq_loss": 100,
-    "lr_multiplier": 0.1,
+    "lr_multiplier": 1,
     "beta_1": 0.9,
     "beta_2": 0.999,
     "eps": 1e-08,
