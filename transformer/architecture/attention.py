@@ -1,3 +1,4 @@
+import logging
 import math
 from typing import Optional, Tuple
 
@@ -184,6 +185,8 @@ class MultiHeadAttention(nn.Module):
             attention weights in shape
             `(N, self.num_heads, seq_length, seq_length)`
         """
+        N, S, E = x.shape  # batch size, sequence length, embedding dim
+
         if attn_mask is not None:
             attn_mask = expand_mask(attn_mask)
         qkv_proj = self.qkv_proj(x)  # `(N, seq_length, 3 * embed_dim)`
@@ -194,15 +197,15 @@ class MultiHeadAttention(nn.Module):
         # reshape and permute into
         # `(N, self.num_heads, seq_length, self.head_dim)`
         # note that `self.embed_dim = self.num_heads * self.head_dim`
-        q_proj = q_proj.reshape(
-            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
-        ).permute(dims=(0, 2, 1, 3))
-        k_proj = k_proj.reshape(
-            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
-        ).permute(dims=(0, 2, 1, 3))
-        v_proj = v_proj.reshape(
-            q_proj.shape[0], q_proj.shape[1], self.num_heads, self.head_dim
-        ).permute(dims=(0, 2, 1, 3))
+        q_proj = q_proj.reshape(N, S, self.num_heads, self.head_dim).permute(
+            dims=(0, 2, 1, 3)
+        )
+        k_proj = k_proj.reshape(N, S, self.num_heads, self.head_dim).permute(
+            dims=(0, 2, 1, 3)
+        )
+        v_proj = v_proj.reshape(N, S, self.num_heads, self.head_dim).permute(
+            dims=(0, 2, 1, 3)
+        )
 
         # Determine value outputs
         # `(N, self.num_heads, seq_length, self.head_dim)`
@@ -212,9 +215,7 @@ class MultiHeadAttention(nn.Module):
             v_proj,
             attn_mask=attn_mask,
         )
-        values = (values := values.permute(0, 2, 1, 3)).reshape(
-            values.shape[0], values.shape[1], self.embed_dim
-        )
+        values = (values := values.permute(0, 2, 1, 3)).reshape(N, S, E)
         o = self.o_proj(values)  # `(N, seq_length, self.embed_dim)`
 
         if return_attention:
