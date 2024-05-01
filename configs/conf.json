@@ -17,6 +17,5 @@
     "block_size": 512,
     "use_amp": true,
     "warmup_steps": 4000,
-    "saving_path": "outputs/3",
-    "tokenizer_file": "transformer/bpe_tokenizer_37k.json"
+    "saving_path": "outputs/3"
 }
