@@ -12,6 +12,7 @@ from math import ceil
 from time import perf_counter
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+import datasets
 import numpy as np
 import torch
 import wandb
@@ -161,12 +162,15 @@ def check_args(args: Namespace) -> None:
 
 
 def get_dataset(
+    dataset: str = "shakespeare",
     train_split: float = 0.8,
 ) -> Tuple[Tensor, Tensor, List[str], int]:
     """
-    Get Tiny Shakespeare dataset.
+    Get dataset. For the Tiny Shakespeare dataset, one token = one character.
+    For the OpenWebText dataset, the GPT2 tokenizer is used.
 
     Args:
+        dataset: Dataset to use. Should be "shakespeare" or "openweb".
         train_split: Fraction of the dataset to use for training.
 
     Returns:
@@ -176,39 +180,48 @@ def get_dataset(
     assert (
         0 < train_split < 1
     ), f"Train split should be > 0 and < 1, but is instead {train_split}"
+    assert dataset in [
+        "shakespeare",
+        "openweb",
+    ], f"Dataset should be 'shakespeare' or 'openweb', but is '{dataset}'."
 
-    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+    if dataset == "shakespeare":
+        url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 
-    # https://stackoverflow.com/a/7244263
-    with urllib.request.urlopen(url) as response, open(
-        "input.txt", "wb"
-    ) as out_file:
-        shutil.copyfileobj(response, out_file)
+        # https://stackoverflow.com/a/7244263
+        with urllib.request.urlopen(url) as response, open(
+            "input.txt", "wb"
+        ) as out_file:
+            shutil.copyfileobj(response, out_file)
 
-    with open("input.txt", "r") as f:
-        text = f.read()
-    os.remove("input.txt")
+        with open("input.txt", "r") as f:
+            text = f.read()
+        os.remove("input.txt")
 
-    logging.info(f"Length of dataset in characters: {len(text)}")
-    logging.info(f"First 100 characters of dataset: {text[:100]}")
+        logging.info(f"Length of dataset in characters: {len(text)}")
+        logging.info(f"First 100 characters of dataset: {text[:100]}")
 
-    # get vocabulary and its size
-    vocab = sorted(list(set(text)))
-    vocab_size = len(vocab)
-    logging.info(
-        f"Vocabulary size: {vocab_size}\nVocabulary: {' '.join(vocab)}"
-    )
+        # get vocabulary and its size
+        vocab = sorted(list(set(text)))
+        vocab_size = len(vocab)
+        logging.info(
+            f"Vocabulary size: {vocab_size}\nVocabulary: {' '.join(vocab)}"
+        )
 
-    # tokenize the text
-    data = torch.tensor(encode(text, vocab=vocab), dtype=torch.long)
-    logging.info(
-        f"Encoded text: {data}\nShape: {data.shape}, dtype: {data.dtype}"
-    )
+        # tokenize the text
+        data = torch.tensor(encode(text, vocab=vocab), dtype=torch.long)
+        logging.info(
+            f"Encoded text: {data}\nShape: {data.shape}, dtype: {data.dtype}"
+        )
 
-    # make train-val split
-    num_train_examples = int(train_split * len(data))
-    train_data = data[:num_train_examples]
-    val_data = data[num_train_examples:]
+        # make train-val split
+        num_train_examples = int(train_split * len(data))
+        train_data = data[:num_train_examples]
+        val_data = data[num_train_examples:]
+    else:
+        train_dataset = datasets.load_dataset(
+            "openwebtext", split=datasets.Split.TRAIN, num_proc=4
+        )
 
     return train_data, val_data, vocab, vocab_size
 

@@ -38,6 +38,12 @@ def get_parser() -> argparse.ArgumentParser:
         help="Configuration file.",
     )
     parser.add_argument(
+        "--dataset",
+        type=str,
+        default="shakepeare",
+        help="Dataset to use. Should be 'shakespeare' or 'openweb'.",
+    )
+    parser.add_argument(
         "--eps",
         type=float,
         default=1e-8,

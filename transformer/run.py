@@ -53,7 +53,9 @@ def main(
         )
 
     # get dataset
-    train_data, val_data, vocab, vocab_size = get_dataset()
+    train_data, val_data, vocab, vocab_size = get_dataset(
+        dataset=args.dataset, train_split=args.train_split
+    )
 
     # define transformer
     model = Transformer(
