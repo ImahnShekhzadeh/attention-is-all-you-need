@@ -53,6 +53,7 @@ def main(
         )
 
     # get dataset
+    # TODO: add support for OpenWebText dataset, add `load_datasets`
     train_data, val_data, vocab, vocab_size = get_dataset(
         dataset=args.dataset, train_split=args.train_split
     )
