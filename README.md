@@ -42,24 +42,9 @@ For an embedding dimension of $48$ and a sequence length of $96$, the following 
 <br>
 
 
-## Sequence Length
-To justify the chosen sequence length, I wrote a script that - for a given pre-trained tokenizer - plots the frequency of tokens vs their number.
-Run the script as follows,
-```
-cd visualiz/
-python3 -B plot__seq_length.py --tokenizer_file ...
-```
-You can either use my pre-trained tokenizer, or provide your own. For the used dataset and the BPE tokenizer `transformer/bpe_tokenizer_37k.json` with a vocabulary size of `37`k, here is the plot:
-
-<div style="display: flex; justify-content: center;">
-    <img src="visualiz/seq_lengths_37k.png" alt="Description" width="600"/>
-</div>
-<br>
-
 For the chosen BPE tokenizer, the total number of *train* tokens is `8.8`M.
 
 ## TODO
 [ ] add label smoothing
-[ ] add start token to encoder input as well
 [ ] add flag to specify # checkpoints, implement code for this
 [ ] add github action workflows
