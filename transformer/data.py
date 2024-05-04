@@ -3,17 +3,17 @@ Get dataset. For the Tiny Shakespeare dataset, one token = one character.
 For the OpenWebText dataset, the GPT2 tokenizer is used.
 """
 
-import os
 import json
-import urllib
+import os
 import shutil
-import numpy as np
+import urllib
 from typing import Dict, List, Optional
 from warnings import warn
 
-import torch
-import tiktoken
 import datasets
+import numpy as np
+import tiktoken
+import torch
 
 
 def encode(text: str, vocab: List[str]) -> List[int]:
@@ -53,9 +53,7 @@ def save_shakespeare(train_split: int) -> None:
     Args:
         train_split: Fraction of the dataset to use for training.
     """
-    url = (
-        "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-    )
+    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 
     # https://stackoverflow.com/a/7244263
     with urllib.request.urlopen(url) as response, open(
@@ -84,14 +82,11 @@ def save_shakespeare(train_split: int) -> None:
     num_train_examples = int(train_split * len(data))
     train_data = data[:num_train_examples]
     val_data = data[num_train_examples:]
-    
+
     # save train/val data and metadata
     torch.save(train_data, "train_data_shakespeare.pt")
     torch.save(val_data, "val_data_shakespeare.pt")
-    meta_data = {
-        "vocab": vocab,
-        "vocab_size": vocab_size
-    }
+    meta_data = {"vocab": vocab, "vocab_size": vocab_size}
     with open("meta.json", "w") as f:
         json.dump(meta_data, f)
 
@@ -102,23 +97,23 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
 
     Args:
         train_split: Fraction of the dataset to use for training.
-        num_proc: Number of processes when downloading and generating the 
+        num_proc: Number of processes when downloading and generating the
             dataset locally. Multiprocessing is disabled by default.
     """
     split_dataset = datasets.load_dataset(
-            "openwebtext", split=datasets.Split.TRAIN, num_proc=num_proc
+        "openwebtext", split=datasets.Split.TRAIN, num_proc=num_proc
     ).train_test_split(
         test_size=1 - train_split, seed=0, shuffle=True
     )  # `DictDataset`
-    
+
     # rename test to val dataset:
     split_dataset["val"] = split_dataset.pop("test")
-    
-    print(f"Data type: {split_dataset["train"]}")
+
+    print(f"Data type: {split_dataset['train']}")
 
     # define BPE tokenizer
     bpe_tokenizer = tiktoken.get_encoding("gpt2")
-    
+
     def process(tokenizer: tiktoken.core.Encoding, example: Dict) -> Dict:
         """
         Encode text and return length of tokens.
@@ -143,7 +138,7 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
         num_proc=num_proc,
     )  # `DatasetDict`
 
-    # concatenate all tokenized ids in each dataset into one large file to 
+    # concatenate all tokenized ids in each dataset into one large file to
     # be used for training/validation:
     for split, dset in token_ids.items():
         arr_len = np.sum(dset["len"], dtype=np.int64)
@@ -153,22 +148,22 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
             mode="w+",
             shape=(arr_len,),
         )
-        
+
         total_batches = 1024
         idx = 0
         for batch_idx in range(total_batches):
             # Batch together samples for faster write
             batch = dset.shard(
                 num_shards=total_batches, index=batch_idx, contiguous=True
-            ).with_format('numpy')
-            array_batch = np.concatenate(batch['ids'])
+            ).with_format("numpy")
+            array_batch = np.concatenate(batch["ids"])
             # Write into mmap
             array[idx : idx + len(array_batch)] = array_batch
             idx += len(array_batch)
         # flush `memmap` instance to disk to write changes to file
         # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html
         array.flush()
-    
+
     # load numpy arrays and store as tensor on disk, then remove numpy arrays
     train_data = torch.from_numpy(
         np.memmap("train_data_openweb.npy", dtype=np.int64, mode="r")
@@ -178,19 +173,21 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
     )
     torch.save(train_data, "train_data_openweb.pt")
     torch.save(val_data, "val_data_openweb.pt")
-    
+
     os.remove("train_data_openweb.npy")
     os.remove("val_data_openweb.npy")
-            
+
 
 def main(
-    train_split: int = 0.8, dataset: str = "shakespeare", num_proc: Optional[int] = None
+    train_split: int = 0.8,
+    dataset: str = "shakespeare",
+    num_proc: Optional[int] = None,
 ) -> None:
     """
     Args:
         train_split: Fraction of the dataset to use for training.
         dataset: Dataset to use. Options are 'shakespeare' and 'openweb'.
-        num_proc: Number of processes when downloading and generating the 
+        num_proc: Number of processes when downloading and generating the
             dataset locally. Multiprocessing is disabled by default.
     """
     assert (
@@ -200,7 +197,7 @@ def main(
         "shakespeare",
         "openweb",
     ], f"Dataset should be 'shakespeare' or 'openweb', but is '{dataset}'."
-    
+
     if dataset == "shakespeare" and num_proc is not None:
         warn("Argument `num_proc` is ignored for the Shakespeare dataset.")
 
