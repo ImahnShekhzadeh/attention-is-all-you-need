@@ -16,8 +16,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import (
     cleanup,
     generate_text,
-    get_dataset,
     load_checkpoint,
+    load_datasets,
     log_parameter_table,
     retrieve_args,
     save_checkpoint,
@@ -52,10 +52,9 @@ def main(
             world_size=world_size,
         )
 
-    # get dataset
-    # TODO: add support for OpenWebText dataset, add `load_datasets`
-    train_data, val_data, vocab, vocab_size = get_dataset(
-        dataset=args.dataset, train_split=args.train_split
+    # load datasets (`vocab` can be `None`)
+    train_data, val_data, vocab_size, vocab = load_datasets(
+        dataset=args.dataset
     )
 
     # define transformer

@@ -163,6 +163,44 @@ def check_args(args: Namespace) -> None:
         )
 
 
+def load_datasets(
+    dataset: str,
+) -> Tuple[Tensor, Tensor, int, Optional[List[str]]]:
+    """
+    Load Shakespeare or OpenWebText dataset.
+
+    Args:
+        dataset: Dataset to load. Should be 'shakespeare' or 'openweb'.
+    
+    Returns:
+        Train and validation data, vocabulary, and vocabulary size.
+        For the openwebtext dataset, the vocabulary is `None`.
+    """
+    if dataset == "shakespeare":
+        train_data = torch.load("train_data_shakespeare.pt")
+        val_data = torch.load("val_data_shakespeare.pt")
+        with open("meta.json", "r") as f:
+            meta_data = json.load(f)
+        vocab_size = meta_data["vocab_size"]
+        vocab = meta_data["vocab"]
+
+    elif dataset == "openweb":
+        bpe_tokenizer = tiktoken.get_encoding("gpt2")
+
+        train_data = torch.load("train_data_openweb.pt")
+        val_data = torch.load("val_data_openweb.pt")
+        vocab_size = bpe_tokenizer.n_vocab
+        vocab = None
+    
+    else:
+        raise NotImplementedError(
+            f"Dataset '{dataset}' not recognized. Please choose either "
+            "'shakespeare' or 'openweb'."
+        )
+    
+    return train_data, val_data, vocab_size, vocab
+
+
 def get_batch(
     data: Tensor,
     batch_size: int,

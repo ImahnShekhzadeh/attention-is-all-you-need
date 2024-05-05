@@ -53,7 +53,9 @@ def save_shakespeare(train_split: int) -> None:
     Args:
         train_split: Fraction of the dataset to use for training.
     """
-    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+    url = (
+        "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+    )
 
     # https://stackoverflow.com/a/7244263
     with urllib.request.urlopen(url) as response, open(
