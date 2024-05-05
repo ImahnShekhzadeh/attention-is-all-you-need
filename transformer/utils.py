@@ -171,7 +171,7 @@ def load_datasets(
 
     Args:
         dataset: Dataset to load. Should be 'shakespeare' or 'openweb'.
-    
+
     Returns:
         Train and validation data, vocabulary, and vocabulary size.
         For the openwebtext dataset, the vocabulary is `None`.
@@ -191,13 +191,13 @@ def load_datasets(
         val_data = torch.load("val_data_openweb.pt")
         vocab_size = bpe_tokenizer.n_vocab
         vocab = None
-    
+
     else:
         raise NotImplementedError(
             f"Dataset '{dataset}' not recognized. Please choose either "
             "'shakespeare' or 'openweb'."
         )
-    
+
     return train_data, val_data, vocab_size, vocab
 
 

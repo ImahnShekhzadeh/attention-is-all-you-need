@@ -15,6 +15,8 @@ import numpy as np
 import tiktoken
 import torch
 
+from options import get_parser__data_prep
+
 
 def encode(text: str, vocab: List[str]) -> List[int]:
     """
@@ -53,9 +55,7 @@ def save_shakespeare(train_split: int) -> None:
     Args:
         train_split: Fraction of the dataset to use for training.
     """
-    url = (
-        "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-    )
+    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 
     # https://stackoverflow.com/a/7244263
     with urllib.request.urlopen(url) as response, open(
@@ -190,7 +190,7 @@ def main(
         train_split: Fraction of the dataset to use for training.
         dataset: Dataset to use. Options are 'shakespeare' and 'openweb'.
         num_proc: Number of processes when downloading and generating the
-            dataset locally. Multiprocessing is disabled by default.
+            openweb dataset locally. Multiprocessing is disabled by default.
     """
     assert (
         0 < train_split < 1
@@ -210,4 +210,11 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    parser = get_parser__data_prep()
+    args = parser.parse_args()
+
+    main(
+        train_split=args.train_split,
+        dataset=args.dataset,
+        num_proc=args.num_proc,
+    )

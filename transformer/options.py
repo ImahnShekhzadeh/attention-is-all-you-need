@@ -1,6 +1,40 @@
 import argparse
 
 
+def get_parser__data_prep() -> argparse.ArgumentParser:
+    """
+    Get parser for command line arguments when running data preparation script.
+
+    Returns:
+        parser for command line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Parameters when running data preparation script."
+    )
+    parser.add_argument(
+        "--train_split",
+        type=float,
+        default=0.8,
+        help="Portion of the data to be used for training.",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="shakespeare",
+        help="Dataset to use. Should be 'shakespeare' or 'openweb'.",
+    )
+    parser.add_argument(
+        "--num_proc",
+        type=int,
+        default=None,
+        help=(
+            "Number of processes when downloading and generating the "
+            "openweb dataset locally. Multiprocessing is disabled by default."
+        ),
+    )
+    return parser
+
+
 def get_parser() -> argparse.ArgumentParser:
     """
     Get parser for command line arguments.
