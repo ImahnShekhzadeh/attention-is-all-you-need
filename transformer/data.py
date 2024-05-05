@@ -134,15 +134,16 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
         return {"token_ids": token_ids, "len": len(token_ids)}
 
     # tokenize the train and val dataset
-    token_ids = split_dataset.map(
+    dataset_dict = split_dataset.map(
         function=lambda x: process(bpe_tokenizer, x),
-        remove_columns=["text"],
+        remove_columns=["text"],  # to reduce memory
         num_proc=num_proc,
-    )  # `DatasetDict`
+    )  # `DatasetDict`, keys: "train", "val"
 
     # concatenate all tokenized ids in each dataset into one large file to
     # be used for training/validation:
-    for split, dset in token_ids.items():
+    for split, dset in dataset_dict.items():
+        # total number of tokens over all sentences summed:
         arr_len = np.sum(dset["len"], dtype=np.int64)
         array = np.memmap(
             filename=f"{split}_data_openweb.npy",
