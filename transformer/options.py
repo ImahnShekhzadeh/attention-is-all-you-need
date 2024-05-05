@@ -74,7 +74,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset",
         type=str,
-        default="shakepeare",
+        default="shakespeare",
         help="Dataset to use. Should be 'shakespeare' or 'openweb'.",
     )
     parser.add_argument(
@@ -197,14 +197,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         default=512,
         help="Embedding dimensionality (`d_model`).",
-    )
-    parser.add_argument(
-        "--min_frequency",
-        type=int,
-        default=0,
-        help=(
-            "Minimum frequency for a token to be included in the vocabulary."
-        ),
     )
     parser.add_argument(
         "--num__decoder_layers",

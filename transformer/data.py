@@ -76,8 +76,8 @@ def save_shakespeare(train_split: int) -> None:
     print(
         f"Length of dataset in characters: {len(text)}\nFirst 100 "
         f"characters of dataset: {text[:100]}\nVocabulary size: "
-        f"{vocab_size}\nVocabulary: {' '.join(vocab)}"
-        f"Encoded text: {data}\nShape: {data.shape}, dtype: {data.dtype}"
+        f"{vocab_size}\nVocabulary: {' '.join(vocab)}\n"
+        f"Encoded text: {data}; shape: {data.shape}, dtype: {data.dtype}"
     )
 
     # make train-val split
@@ -186,7 +186,7 @@ def main(
     num_proc: Optional[int] = None,
 ) -> None:
     """
-    Save the chosen dataset (and some meta data for the Shakespeare dataset) 
+    Save the chosen dataset (and some meta data for the Shakespeare dataset)
     to disk.
 
     Args:
@@ -215,6 +215,7 @@ def main(
 if __name__ == "__main__":
     parser = get_parser__data_prep()
     args = parser.parse_args()
+    print(f"Flags:\n{args}\n")
 
     main(
         train_split=args.train_split,

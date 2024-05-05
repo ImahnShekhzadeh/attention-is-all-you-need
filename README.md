@@ -7,9 +7,25 @@ Note that the tokenizer `bpe_tokenizer_37k.json` used here was obtained by train
 Also, please note that the BPE tokenizer was first trained specifying the special tokens `[UNK]`, `[CLS]`, `[SEP]`, `[PAD]` and `MASK`. Later, I modified my code such that only `[UNK]` and `[PAD]` are special tokens appearing in the vocabulary, and added `[SOS]` as a start of sentence token. To avoid having to retrain the tokenizer for about two days on a consumer-grade CPU, I modified the used vocabulary [`bpe_tokenizer_37k.json`](transformer/bpe_tokenizer_37k.json) by removing the special token `[CLS]` and usnig `[SOS]` instead. This modification happened in-place.
 
 ## Run
-To run the python script,
+First build the docker container,
 ```
 docker build -f Dockerfile -t transformers:1.0.0 .
+```
+### Shakespeare
+To run the preprocessing for the Shakespeare dataset, run
+```
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 python -B /app/transformer/data.py --train_split 0.8 --dataset shakespeare
+```
+This saves two tensor files and one `.json` file containing the metadata. Note that for the Shakespeare dataset, a character-level tokenization is chosen, i.e. one token is one character.
+
+Then to run the training,
+```
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 python -B /app/transformer/run.py --config configs/conf.json --train
+```
+You can also specify a W&B key by appending `--wandb__api_key ...` and change the saving path.
+
+### OpenWebText
+```
 docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --train
 ```
 By default, [`torch.compile()`](https://pytorch.org/docs/stable/generated/torch.compile.html) is used, which reduces training time.
