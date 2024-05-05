@@ -158,7 +158,7 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
             batch = dset.shard(
                 num_shards=total_batches, index=batch_idx, contiguous=True
             ).with_format("numpy")
-            array_batch = np.concatenate(batch["ids"])
+            array_batch = np.concatenate(batch["token_ids"])
             # Write into mmap
             array[idx : idx + len(array_batch)] = array_batch
             idx += len(array_batch)

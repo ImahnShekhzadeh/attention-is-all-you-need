@@ -25,6 +25,11 @@ docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0
 You can also specify a W&B key by appending `--wandb__api_key ...` and change the saving path.
 
 ### OpenWebText
+To run the preprocessing for the Shakespeare dataset, run
+```
+docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 python -B /app/transformer/data.py --train_split 0.9 --dataset openweb --num_proc 4
+```
+This saves two tensor files. Note that the GPT2 tokenizer is used, which uses BPE.
 ```
 docker run --shm-size 512m --rm -v $(pwd):/app --gpus all -it transformers:1.0.0 --config configs/conf.json --train
 ```
