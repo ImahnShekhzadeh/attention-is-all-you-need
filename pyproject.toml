@@ -32,7 +32,14 @@ profile="black"
 line_length=79
 # necessary to get `isort` working in Docker container:
 overwrite_in_place=true
-known_first_party = ["architecture", "attention", "layers", "models", "options"]
+known_first_party = [
+    "architecture",
+    "attention",
+    "layers",
+    "models",
+    "options",
+    "data",
+]
 known_third_party = ["wandb"]
 
 [tool.black]

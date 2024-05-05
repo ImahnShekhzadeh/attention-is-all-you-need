@@ -14,6 +14,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import datasets
 import numpy as np
+import tiktoken
 import torch
 import wandb
 from prettytable import PrettyTable
@@ -26,6 +27,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, DistributedSampler, IterableDataset
 
 from architecture.attention import get_subsequent_mask
+from data import decode, encode
 
 
 def total_norm__grads(model: nn.Module) -> float:
@@ -495,7 +497,7 @@ def generate_text(
     max_new_tokens: int,
     block_size: int,
     use_amp: bool,
-    vocab: List[str],
+    vocab: Optional[List[str]],
     rank: str | int | torch.device,
     temperature: float = 1.0,
     top_k: Optional[int] = None,
@@ -508,7 +510,7 @@ def generate_text(
         max_new_tokens: Maximum number of tokens to generate.
         block_size: Maximum context length for predictions.
         use_amp: Whether to use automatic mixed precision.
-        vocab: Vocabulary.
+        vocab: Vocabulary. If not provided, GPT2 encoding is used.
         rank: Device on which the code is executed.
         temperature: Temperature for sampling. For `temperature > 1`,
             predictions will be more diverse, for `temperature < 1`,
@@ -517,7 +519,14 @@ def generate_text(
     """
     model.eval()
 
-    start_ids = encode("\n", vocab=vocab)
+    if vocab is not None:
+        start_ids = encode("\n", vocab=vocab)
+    else:
+        # assume GPT-2 encoding
+        tokenizer = tiktoken.get_encoding("gpt2")
+        start_ids = tokenizer.encode(
+            text="\n", allowed_special={"<|endoftext|>"}
+        )
     x = torch.tensor(start_ids, dtype=torch.long, device=rank).unsqueeze(dim=0)
 
     with autocast(
@@ -533,5 +542,10 @@ def generate_text(
             top_k=top_k,
         )
 
-    generated_text = decode(gen_tok.squeeze(dim=0).tolist(), vocab=vocab)
+    if vocab is not None:
+        generated_text = decode(gen_tok.squeeze(dim=0).tolist(), vocab=vocab)
+    else:
+        generated_text = tokenizer.decode(
+            tokens=gen_tok.squeeze(dim=0).tolis()
+        )
     logging.info(f"Generated text:\n\n{generated_text}")
