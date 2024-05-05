@@ -186,6 +186,9 @@ def main(
     num_proc: Optional[int] = None,
 ) -> None:
     """
+    Save the chosen dataset (and some meta data for the Shakespeare dataset) 
+    to disk.
+
     Args:
         train_split: Fraction of the dataset to use for training.
         dataset: Dataset to use. Options are 'shakespeare' and 'openweb'.
