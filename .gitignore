@@ -27,8 +27,8 @@ wandb/
 # VSCode
 .vscode/
 
-# tensor files
-*.pt
+# numpy arrays
+*.npy
 
 # meta data for Shakespeare dataset
 meta.json

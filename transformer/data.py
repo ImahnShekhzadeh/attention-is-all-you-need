@@ -13,7 +13,6 @@ from warnings import warn
 import datasets
 import numpy as np
 import tiktoken
-import torch
 
 from options import get_parser__data_prep
 
@@ -72,7 +71,7 @@ def save_shakespeare(train_split: int) -> None:
     vocab_size = len(vocab)
 
     # tokenize the text
-    data = torch.tensor(encode(text, vocab=vocab), dtype=torch.long)
+    data = np.array(encode(text, vocab=vocab), dtype=np.int64)
     print(
         f"Length of dataset in characters: {len(text)}\nFirst 100 "
         f"characters of dataset: {text[:100]}\nVocabulary size: "
@@ -86,8 +85,8 @@ def save_shakespeare(train_split: int) -> None:
     val_data = data[num_train_examples:]
 
     # save train/val data and metadata
-    torch.save(train_data, "train_data_shakespeare.pt")
-    torch.save(val_data, "val_data_shakespeare.pt")
+    np.save("train_data_shakespeare.npy", train_data)
+    np.save("val_data_shakespeare.npy", val_data)
     meta_data = {"vocab": vocab, "vocab_size": vocab_size}
     with open("meta.json", "w") as f:
         json.dump(meta_data, f)
@@ -166,19 +165,6 @@ def save_openweb(train_split: int, num_proc: Optional[int] = None) -> None:
         # flush `memmap` instance to disk to write changes to file
         # https://numpy.org/doc/stable/reference/generated/numpy.memmap.html
         array.flush()
-
-    # load numpy arrays and store as tensor on disk, then remove numpy arrays
-    train_data = torch.from_numpy(
-        np.memmap("train_data_openweb.npy", dtype=np.int64, mode="r")
-    )
-    val_data = torch.from_numpy(
-        np.memmap("val_data_openweb.npy", dtype=np.int64, mode="r")
-    )
-    torch.save(train_data, "train_data_openweb.pt")
-    torch.save(val_data, "val_data_openweb.pt")
-
-    os.remove("train_data_openweb.npy")
-    os.remove("val_data_openweb.npy")
 
 
 def main(
